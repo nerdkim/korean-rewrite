@@ -33,6 +33,55 @@ function advise(right) {
   return right.length > 0 ? ` ${JSON.stringify(right)}처럼 고칠 수도 있습니다.` : '';
 }
 
+/* 굵은 글씨 표시입니다. */
+const BOLD = '(?:\\*\\*|__)';
+
+/* 줄 앞의 목록 표시입니다. */
+const LIST = '(?:[-*+][ \\t]+|\\d+[.)][ \\t]+)?';
+
+/* 표 머리글 바로 아래에 두는 구분 줄인지 봅니다. */
+function isTableRule(line) {
+  return line.includes('|') && line.includes('-') && /^[\s|:-]+$/u.test(line);
+}
+
+/* 표 줄을 칸으로 나눕니다. */
+function tableCells(line) {
+  return line.trim().replace(/^\|/u, '').replace(/\|$/u, '').split('|');
+}
+
+/* 칸에서 공백, 굵은 글씨 표시, 끝의 물음표나 콜론 하나를 뗍니다. */
+function bareCell(cell) {
+  return cell.trim().replace(/^(?:\*\*|__)|(?:\*\*|__)$/gu, '').trim().replace(/[?？:：]$/u, '').trim();
+}
+
+/* 제목이나 항목 이름이 그 낱말 하나뿐인 첫 줄의 번호를 돌려줍니다. 없으면 0입니다. */
+function headingLineOf(lines, word) {
+  const w = escape(word);
+  /* `## 왜`, `### 왜?`, `## **왜**`처럼 제목 전체가 그 낱말인 줄입니다. */
+  const heading = new RegExp(`^ {0,3}#{1,6}[ \\t]+${BOLD}?${w}[ \\t]*[?？:：]?${BOLD}?[ \\t]*#*[ \\t]*$`, 'u');
+  /* `**왜**`처럼 굵은 글씨만 쓴 줄과 `왜:`, `**왜:**`, `**왜**:`처럼 콜론 앞에 둔 항목 이름입니다. */
+  const label = new RegExp(
+    `^[ \\t]*${LIST}(?:${BOLD}${w}[ \\t]*[?？]?${BOLD}[ \\t]*$|${BOLD}${w}[ \\t]*[:：]${BOLD}|${BOLD}${w}${BOLD}[ \\t]*[:：]|${w}[ \\t]*[:：])`,
+    'u',
+  );
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (heading.test(line) || label.test(line)) return i + 1;
+    /* 표에서는 구분 줄 바로 위에 있는 머리글 칸만 봅니다. */
+    if (i + 1 < lines.length && line.includes('|') && isTableRule(lines[i + 1]) && tableCells(line).some((cell) => bareCell(cell) === word)) {
+      return i + 1;
+    }
+  }
+  return 0;
+}
+
+/* 대신 쓸 이름이 여럿이면 `또는`으로 나눠 따로 인용합니다. 그래야 `문제 및 원인 또는 배경`에서 `및`과 `또는`이 무엇을 묶는지 헷갈리지 않습니다. */
+function adviseNames(right) {
+  const names = right.split(/\s+또는\s+/u).map((name) => name.trim()).filter((name) => name.length > 0);
+  const like = names.length > 0 ? `${names.map((name) => JSON.stringify(name)).join(' 또는 ')}처럼 ` : '';
+  return ` 그 절이나 항목에 담은 내용이 드러나게 ${like}고칠 수도 있습니다.`;
+}
+
 export function translationeseViolations(text, rules) {
   const out = [];
 
@@ -98,6 +147,19 @@ export function translationeseViolations(text, rules) {
       rule: 'literal-verb',
       detail: `목적어 ${JSON.stringify(m[1])} 뒤에 직역 동사를 썼습니다: ${JSON.stringify(m[0].trim().slice(0, 40))}.${advise(right)}`,
       line: lineOf(text, m.index),
+    });
+  }
+
+  /* 4) 제목이나 항목 이름을 영어 낱말 그대로 옮긴 것입니다. 제목이나 항목 이름이 `translationese-headings`에 적은 낱말 하나뿐인 줄을 잡습니다. `## 왜 이런 일이 생기나`처럼 다른 말이 붙은 제목과 `>`로 시작하는 인용 줄은 잡지 않습니다. */
+  let lines = null;
+  for (const [word, right] of rules.translationeseHeadings ?? []) {
+    lines ??= text.split('\n');
+    const line = headingLineOf(lines, word);
+    if (line === 0) continue;
+    out.push({
+      rule: 'translationese',
+      detail: `제목이나 항목 이름을 영어 낱말 그대로 옮겼을 수 있습니다: ${JSON.stringify(word)}.${adviseNames(right)}`,
+      line,
     });
   }
 

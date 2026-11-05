@@ -47,6 +47,8 @@ const MAP_KEYS = {
   /* 정해 둔 낱말이 목적어일 때만 잡는 직역 동사입니다. 예전 검사기가 이 항목을 낱말 목록으로 잘못 읽지 않도록 `literal-verbs`와 다른 키에 둡니다. */
   'object-verbs': 'objectVerbs',
   'translationese-patterns': 'translationesePatterns',
+  /* 제목이나 항목 이름 전체가 적어 둔 낱말 하나일 때만 잡는 영어식 표현입니다. 이 키에 적는 `왜` 같은 낱말은 문장 안에서는 자연스러워서 `translationese-patterns`와 다른 키에 둡니다. */
+  'translationese-headings': 'translationeseHeadings',
   'known-typos': 'knownTypos',
   /* 영어를 낱말 단위로 옮겨 만든 말과 대신 쓸 표현입니다. */
   calques: 'calques',
@@ -179,6 +181,7 @@ const FALLBACK = {
   literalVerbs: new Map(),
   objectVerbs: new Map(),
   translationesePatterns: new Map(),
+  translationeseHeadings: new Map(),
   knownTypos: new Map(),
   calques: new Map(),
   inclusiveTerms: new Map(),
@@ -261,6 +264,7 @@ function freshRules() {
     literalVerbs: new Map(),
     objectVerbs: new Map(),
     translationesePatterns: new Map(),
+    translationeseHeadings: new Map(),
     knownTypos: new Map(),
     calques: new Map(),
     inclusiveTerms: new Map(),
@@ -391,6 +395,7 @@ export function fenceRules(rules) {
     doublePassive: new Map(),
     flatteryOpeners: [],
     translationesePatterns: new Map(),
+    translationeseHeadings: new Map(),
     literalVerbs: new Map(),
     objectVerbs: new Map(),
     maxCommaPerSentence: 0,

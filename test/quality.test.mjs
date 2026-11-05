@@ -132,6 +132,49 @@ test('`승인을 묻다`는 경고로 알리고 승인 여부를 묻거나 승�
   }
 });
 
+test('제목이나 항목 이름이 `왜` 하나뿐인 줄은 경고로 알리고 다른 말이 붙은 제목과 문장 속 `왜`는 알리지 않는다', () => {
+  /* 사용자는 Claude가 영어 `Why`를 `왜`로 옮긴 제목을 자주 쓴다고 알려 왔습니다. 팀이 정한 PR 템플릿에 이런 제목이 들어 있을 수도 있어서 검사기는 오류로 막지 않고 경고로만 알립니다. */
+  const flagged = [
+    '## 왜\n\n캐시가 비어 요청이 실패했습니다.',
+    '### 왜?\n\n캐시가 비었습니다.',
+    '**왜**\n\n캐시가 비어 요청이 실패했습니다.',
+    '**왜:** 캐시가 비어 요청이 실패했습니다.',
+    '- **왜**: 캐시가 비어 요청이 실패했습니다.',
+    '- 왜: 캐시가 비어 요청이 실패했습니다.',
+    '| 바꾼 내용 | 왜 |\n| --- | --- |\n| 캐시를 비웁니다 | 요청이 실패했습니다 |',
+  ];
+  for (const target of ['chat', 'doc', 'commit']) {
+    for (const text of flagged) {
+      const found = checkText(text, rules, target);
+      assert.ok(found.some(v => v.rule === 'translationese' && v.severity === 'warning'), `${target}: ${text}`);
+      assert.equal(blockingViolations(found).length, 0, `${target}: ${text}`);
+    }
+  }
+  for (const text of [
+    '## 문제 및 원인\n\n캐시가 비어 요청이 실패했습니다.',
+    '## 왜 이런 일이 생기나\n\n스케줄러는 requests 합계를 봅니다.',
+    '왜 배포가 실패했는지 설명해 주십시오.',
+    '**왜** 이렇게 했는지 설명합니다.',
+    '왜냐하면 캐시가 비었기 때문입니다.',
+    '## 왜곡된 값\n\n캐시를 비웁니다.',
+    '> ## 왜\n> 다른 사람이 쓴 PR 설명입니다.',
+    '`## 왜` 대신 `## 배경`이라고 씁니다.',
+    '| 질문 | 답 |\n| --- | --- |\n| 왜 | 캐시가 비어서입니다 |',
+  ]) {
+    assert.ok(!checkText(text, rules, 'doc').some(v => v.rule === 'translationese'), text);
+  }
+  /* 대신 쓸 이름은 `또는`으로 나눠 따로 인용해야 `및`과 `또는`이 무엇을 묶는지 헷갈리지 않습니다. */
+  assert.match(checkText('## 왜\n\n캐시가 비었습니다.', rules).find(v => v.rule === 'translationese').detail, /"문제 및 원인" 또는 "배경"처럼/);
+});
+
+test('`translationese-headings`에 적은 낱말만 제목과 항목 이름에서 잡고 키가 없거나 값을 비운 규칙에서는 잡지 않는다', () => {
+  const own = parseRuleBlock('advisory-rules: translationese\ntranslationese-headings: 무엇을=바꾼 내용');
+  assert.ok(checkText('## 무엇을\n\n캐시를 비웁니다.', own).some(v => v.rule === 'translationese'));
+  assert.ok(!checkText('## 왜\n\n캐시가 비었습니다.', own).some(v => v.rule === 'translationese'), '적어 두지 않은 낱말은 잡으면 안 됩니다');
+  assert.ok(!checkText('## 왜\n\n캐시가 비었습니다.', parseRuleBlock('translationese-headings:')).some(v => v.rule === 'translationese'), '값을 비운 규칙에서는 잡으면 안 됩니다');
+  assert.ok(!checkText('## 왜\n\n캐시가 비었습니다.', parseRuleBlock('register: 합니다체')).some(v => v.rule === 'translationese'), '키가 없는 예전 규칙에서는 잡으면 안 됩니다');
+});
+
 test('기본 규칙의 `literal-verbs`에는 `>`가 든 항목이 없다', () => {
   /* 0.3.5까지의 검사기는 `literal-verbs`의 `목적어>동사` 항목을 `|`로 나눈 낱말 목록으로 읽습니다. 그러면 새 규칙 문서만 받은 프로젝트에서 `설정`, `성능` 같은 낱말에도 경고가 나옵니다. 그래서 이런 항목은 예전 검사기가 읽지 않는 `object-verbs`에 둡니다. */
   assert.ok(rules.objectVerbs.size > 0);
@@ -297,6 +340,13 @@ test('skill에는 프로그램이 하는 일과 Claude가 할 일을 행위자 �
   assert.match(skill, /프로그램이 하는 일과 내가 할 일을 행위자 없이 이은 문장/);
   assert.match(skill, /내가 할 일에는 무엇을 어디에서 바꾸는지 쓰고/);
   assert.match(skill, /`승인을 묻습니다` → `승인을 요청합니다` 또는 `승인할지 묻습니다`/);
+});
+
+test('skill에는 영어 `Why`를 옮긴 `왜` 제목을 그 절에 담은 내용이 드러나는 이름으로 고치라는 지시가 들어 있다', () => {
+  /* 검사기는 `왜` 하나만 쓴 제목과 항목 이름을 경고로만 알립니다. hook은 경고 때문에 답변을 다시 쓰게 하지 않으므로 skill에서 이 지시가 빠지면 안 됩니다. */
+  const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
+  assert.match(skill, /영어 제목과 항목 이름을 낱말 그대로 옮긴 것/);
+  assert.match(skill, /`## 왜` → `## 문제 및 원인`/);
 });
 
 test('skill에는 흔한 한자어 동사는 그대로 쓰고 프로젝트 지침에 든 고칠 표현은 따라 쓰지 말라는 지시가 들어 있다', () => {
