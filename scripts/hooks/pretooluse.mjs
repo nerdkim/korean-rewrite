@@ -4,9 +4,9 @@ import { readFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { isEntryPoint, projectRoot, rulesDocPath, toolRoot } from '../lib/paths.mjs';
 import { loadRules } from '../lib/rules.mjs';
-import { checkText, checkToolCall, formatToolViolations, formatViolations, blockingViolations, toolFieldTexts } from '../lib/check.mjs';
+import { GENERAL_READER_MARK, checkText, checkToolCall, formatToolViolations, formatViolations, blockingViolations, toolFieldTexts } from '../lib/check.mjs';
 import { koreanCommentsOf } from '../lib/comments.mjs';
-import { targetForPath, toProjectRelative } from '../lib/targets.mjs';
+import { isGeneralReaderPath, targetForPath, toProjectRelative } from '../lib/targets.mjs';
 import { blankQuoteRegions, stripCode } from '../lib/text.mjs';
 import { needsSkill, needsWriter, skillRequest, writerRequest } from '../lib/skill.mjs';
 
@@ -18,7 +18,7 @@ const FILE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 /* Claude에게 한 번에 보여 주는 경고는 이 건수까지입니다. 많으면 정작 고칠 것이 묻힙니다. */
 const MAX_REVIEW_NOTES = 5;
 
-/* 편집을 적용한 뒤의 파일 내용을 돌려줍니다. */
+/* 편집을 적용한 뒤의 파일 내용을 돌려줍니다. 파일이 없거나 읽지 못하면 이번에 쓰는 글을 돌려줍니다. MultiEdit이면 편집마다 쓴 새 문자열을 이어 붙인 글입니다. */
 export function resultOfEdit(toolName, toolInput, filePath) {
   if (toolName === 'Write') return toolInput.content ?? '';
   if (toolName === 'NotebookEdit') return toolInput.new_source ?? '';
@@ -27,7 +27,7 @@ export function resultOfEdit(toolName, toolInput, filePath) {
   try {
     current = readFileSync(filePath, 'utf-8');
   } catch {
-    return toolInput.new_string ?? '';
+    return writtenText(toolName, toolInput);
   }
 
   const edits =
@@ -59,12 +59,12 @@ export function writtenText(toolName, toolInput) {
   return toolInput.new_string ?? '';
 }
 
-/* 지금 디스크에 있는 파일 내용입니다. 새 파일이면 빈 문자열입니다. */
+/* 지금 디스크에 있는 파일 내용입니다. 파일이 없거나 읽지 못하면 null입니다. */
 function currentText(filePath) {
   try {
     return readFileSync(filePath, 'utf-8');
   } catch {
-    return '';
+    return null;
   }
 }
 
@@ -90,14 +90,40 @@ function changedRange(beforeLines, afterLines) {
   return { head, beforeEnd: beforeLines.length - tail, afterEnd: afterLines.length - tail };
 }
 
-/* `from`부터 `to` 앞까지의 줄이 든 문단만 남기고 나머지 줄은 비웁니다. 줄 번호는 파일 그대로입니다. */
+/* `from`부터 `to` 앞까지의 줄이 든 문단만 남기고 나머지 줄은 비웁니다. 줄을 넣거나 지우기만 해서 `from`과 `to`가 같으면 그 자리를 둘러싼 문단을 남깁니다. 줄 번호는 파일 그대로입니다. */
 function paragraphsAround(lines, from, to) {
-  if (from >= to) return '';
   let start = from;
   while (start > 0 && lines[start - 1].trim() !== '') start -= 1;
   let end = to;
   while (end < lines.length && lines[end].trim() !== '') end += 1;
   return lines.map((line, i) => (i >= start && i < end ? line : '')).join('\n');
+}
+
+/* 일반 독자가 읽는 글인지 봅니다. 문단이나 바뀐 줄만 떼어 검사하면 파일 첫머리의 표시 줄이 빠지므로 파일 전체의 산문으로 미리 정합니다. 기준은 검사기(`checkText`)와 같습니다. */
+function generalReaderProse(lines, target, path, rules) {
+  return isGeneralReaderPath(path, rules) || (target === 'doc' && GENERAL_READER_MARK.test(lines.join('\n')));
+}
+
+/*
+ * 두 위반이 같은 위반인지 비교할 때 쓰는 키입니다. 규칙 이름과 설명에서 큰따옴표로 감싼 말(찾은 표현과 대신 쓸 말)만 씁니다.
+ * 같은 위반이어도 검사한 범위에 따라 설명 끝에 붙거나 빠지는 문장이 있습니다. 처음 나온 음차에만 붙이는 안내가 그런 예입니다. 따라서 설명 전체는 쓰지 않습니다. 큰따옴표로 감싼 말이 없을 때만 설명 전체를 씁니다.
+ */
+function violationKey(v) {
+  const quoted = v.detail.match(/"(?:[^"\\]|\\.)*"/g);
+  return `${v.rule}\n${quoted === null ? v.detail : quoted.join('\n')}`;
+}
+
+/* `found` 가운데 `known`에 없는 위반을 돌려줍니다. 키가 같은 위반이 여럿이면 개수까지 비교합니다. */
+function unmatched(found, known) {
+  const left = new Map();
+  for (const v of known) left.set(violationKey(v), (left.get(violationKey(v)) ?? 0) + 1);
+  return found.filter((v) => {
+    const key = violationKey(v);
+    const count = left.get(key) ?? 0;
+    if (count === 0) return true;
+    left.set(key, count - 1);
+    return false;
+  });
 }
 
 /*
@@ -113,11 +139,59 @@ export function reviewNotes(before, after, rules, target, path) {
   const afterLines = proseLinesOf(after, target, path, rules);
   const { head, beforeEnd, afterEnd } = changedRange(beforeLines, afterLines);
   /* 주석 밖의 코드와 코드 블록은 이미 가렸으므로 남은 글은 문서(`doc`) 규칙으로 검사합니다. */
-  const pick = (text) => checkText(text, rules, 'doc').filter((v) => v.severity === 'warning' && wanted.has(v.rule));
-  const added = pick(paragraphsAround(afterLines, head, afterEnd));
-  if (added.length === 0) return [];
-  const seen = new Set(pick(paragraphsAround(beforeLines, head, beforeEnd)).map((v) => `${v.rule}\n${v.detail}`));
-  return added.filter((v) => !seen.has(`${v.rule}\n${v.detail}`));
+  const pick = (lines, end) =>
+    checkText(paragraphsAround(lines, head, end), rules, 'doc', { generalReader: generalReaderProse(lines, target, path, rules) })
+      .filter((v) => v.severity === 'warning' && wanted.has(v.rule));
+  const added = pick(afterLines, afterEnd);
+  return added.length === 0 ? [] : unmatched(added, pick(beforeLines, beforeEnd));
+}
+
+/* `lines`에서 `from`부터 `to` 앞까지의 줄 가운데 `others`에 없는 줄만 남기고 나머지 줄은 비웁니다. 내용이 같은 줄이 여럿이면 개수까지 비교합니다. 줄 번호는 파일 그대로입니다. */
+function linesNotIn(lines, from, to, others) {
+  const left = new Map();
+  for (const line of others) left.set(line.trim(), (left.get(line.trim()) ?? 0) + 1);
+  return lines
+    .map((line, i) => {
+      if (i < from || i >= to) return '';
+      const count = left.get(line.trim()) ?? 0;
+      if (count === 0) return line;
+      left.set(line.trim(), count - 1);
+      return '';
+    })
+    .join('\n');
+}
+
+/*
+ * 이번 편집으로 새로 생긴 오류를 돌려줍니다. 편집 전 파일(`before`)이 null이면 새 파일로 보고 편집한 뒤 파일 전체의 오류를 모두 돌려줍니다.
+ * 기존 파일에서는 두 가지 오류를 새로 생긴 오류로 봅니다.
+ * 첫째는 바뀐 줄에서 새로 나온 오류입니다. 편집 전과 후의 산문에서 바뀐 줄만 남겨 각각 검사하고 편집 뒤에만 나온 오류를 고릅니다. 내용이 같은 줄은 자리를 옮겼어도 바뀐 줄로 보지 않습니다. 바뀌지 않은 줄에 같은 오류가 있어도 바뀐 줄의 오류는 막습니다.
+ * 둘째는 편집 전 파일에서 한 건도 나오지 않던 규칙의 오류입니다. 일반 독자용 표시 줄을 지워 생긴 오류와 코드 블록 안에 쓴 오류는 바뀐 줄의 산문만 검사해서는 찾지 못하므로 파일 전체를 비교해 찾습니다.
+ * 편집 전부터 있던 오류는 막지 않으므로 예전 표기가 남은 파일도 고칠 수 있습니다. 다만 편집 전 줄에 있던 오류와 같은 오류가 그 줄을 고친 자리에 하나 더 생기면 막지 못합니다. IT 용어 표처럼 같은 표현은 처음 나온 곳 하나만 보고하는 규칙이 많기 때문입니다.
+ */
+export function newErrors(before, after, rules, target, path) {
+  const errorsOf = (text) => blockingViolations(checkText(text, rules, target, { path }));
+  const found = errorsOf(after);
+  if (found.length === 0 || before === null) return found;
+
+  const beforeLines = proseLinesOf(before, target, path, rules);
+  const afterLines = proseLinesOf(after, target, path, rules);
+  const { head, beforeEnd, afterEnd } = changedRange(beforeLines, afterLines);
+  /* 주석 밖의 코드와 코드 블록은 이미 가렸으므로 남은 글은 문서(`doc`) 규칙으로 검사합니다. */
+  const errorsIn = (lines, end, others) =>
+    blockingViolations(checkText(linesNotIn(lines, head, end, others), rules, 'doc', { generalReader: generalReaderProse(lines, target, path, rules) }));
+  const added = errorsIn(afterLines, afterEnd, beforeLines.slice(head, beforeEnd));
+  const onChangedLines = added.length === 0 ? [] : unmatched(added, errorsIn(beforeLines, beforeEnd, afterLines.slice(head, afterEnd)));
+
+  const oldRules = new Set(errorsOf(before).map((v) => v.rule));
+  const seen = new Set();
+  return [...onChangedLines, ...found.filter((v) => !oldRules.has(v.rule))]
+    .filter((v) => {
+      const key = `${violationKey(v)}\n${v.line}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.line - b.line);
 }
 
 /* shell에 그대로 붙여 넣을 수 있게 필요하면 경로를 작은따옴표로 감쌉니다. */
@@ -135,7 +209,7 @@ export function formatReviewNotes(notes, where, checker = 'check-korean.mjs') {
   return [head, ...body, ...rest].join('\n');
 }
 
-/* heredoc을 여는 표시입니다. 끝을 알리는 이름은 두 번째 캡처 그룹에 담깁니다. */
+/* heredoc을 여는 표시입니다. 끝을 알리는 이름은 두 번째 capture group에 담깁니다. */
 const HEREDOC_OPEN = /<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1/y;
 
 /* `from`부터 heredoc 본문을 차례로 건너뛰고 마지막 본문을 닫는 줄의 끝 위치를 돌려줍니다. */
@@ -208,21 +282,21 @@ export function commandSegments(command) {
 }
 
 /*
- * 옵션 하나의 값입니다. Claude Code는 여러 줄 메시지를 `"$(cat <<'EOF' ... EOF\n)"`로 넘깁니다. 이 형태에서는 heredoc 본문을 값으로 읽습니다.
+ * option 하나의 값입니다. Claude Code는 여러 줄 메시지를 `"$(cat <<'EOF' ... EOF\n)"`로 넘깁니다. 이 형태에서는 heredoc 본문을 값으로 읽습니다.
  * 그 밖에는 ANSI-C 따옴표(`$'...'`), 큰따옴표, 작은따옴표로 감싼 값과 따옴표 없이 쓴 낱말 하나를 읽습니다.
- * 들여쓰기와 줄 끝 공백은 `[\t ]`로만 잡습니다. `\s`처럼 줄바꿈까지 잡으면 닫히지 않은 heredoc에서 백트래킹이 크게 늘어납니다.
+ * 들여쓰기와 줄 끝 공백은 `[\t ]`로만 잡습니다. `\s`처럼 줄바꿈까지 잡으면 닫히지 않은 heredoc에서 backtracking이 크게 늘어납니다.
  */
 const OPTION_VALUE = String.raw`(?:"\$\(cat[ \t]+<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1[^\n]*\n([\s\S]*?)\n[\t ]*\2[\t ]*(?:\n[\t ]*)?\)"|\$'((?:[^'\\]|\\[\s\S])*)'|"((?:[^"\\]|\\[\s\S])*)"|'([^']*)'|(\S+))`;
 
-/* ANSI-C 따옴표 안의 이스케이프를 풉니다. */
+/* ANSI-C 따옴표 안의 escape 문자를 풉니다. */
 const unescapeAnsiC = (s) => s.replace(/\\(.)/gs, (_, ch) => ({ n: '\n', t: '\t' })[ch] ?? ch);
 
-/* 큰따옴표로 감싼 값이나 따옴표 없이 쓴 값에서 shell이 풀었을 이스케이프를 풉니다. 백슬래시로 이은 줄은 붙이고 글자 그대로 쓴 `\n`도 줄바꿈으로 바꿉니다. */
+/* 큰따옴표로 감싼 값이나 따옴표 없이 쓴 값에서 shell이 풀었을 escape 문자를 풉니다. backslash로 이은 줄은 붙이고 글자 그대로 쓴 `\n`도 줄바꿈으로 바꿉니다. */
 const unescapeShell = (s) => s.replace(/\\\n/g, '').replace(/\\(["'\\$`])/g, '$1').replace(/\\n/g, '\n');
 
 /*
- * 명령 하나에서 옵션 값을 모두 뽑습니다. 짧은 옵션은 `-m메시지`처럼 값을 붙여 써도 읽습니다.
- * 긴 옵션은 이름 뒤에 `=`, 공백, 따옴표, `$`가 올 때만 읽습니다. 그래야 `--body-file`처럼 `--body`로 시작하는 다른 옵션을 `--body`로 잘못 읽지 않습니다.
+ * 명령 하나에서 option 값을 모두 뽑습니다. 짧은 option은 `-m메시지`처럼 값을 붙여 써도 읽습니다.
+ * 긴 option은 이름 뒤에 `=`, 공백, 따옴표, `$`가 올 때만 읽습니다. 그래야 `--body-file`처럼 `--body`로 시작하는 다른 option을 `--body`로 잘못 읽지 않습니다.
  */
 function optionValues(segment, { short, long }) {
   const re = new RegExp(String.raw`(?:^|\s)(?:${short}|(?:${long})(?=[=\s"'$]))(?:=|[ \t]*)${OPTION_VALUE}`, 'g');
@@ -244,20 +318,20 @@ function stdinBodies(segment) {
   return bodies;
 }
 
-/* `git commit` 명령입니다. `git -C <경로> commit`처럼 git 전역 옵션을 앞에 둔 형태도 봅니다. */
+/* `git commit` 명령입니다. `git -C <경로> commit`처럼 git 전역 option을 앞에 둔 형태도 봅니다. */
 const GIT_COMMIT = /^\s*(?:\w+=\S*\s+)*git(?:\s+(?:-[Cc]\s+\S+|--[\w-]+(?:=\S+)?|-[A-Za-z]+))*\s+commit\b/;
 
-/* PR과 이슈에 글을 올리는 `gh` 명령입니다. `new`는 `create`의 별칭입니다. `merge`는 병합 커밋의 제목과 본문을 받습니다. */
+/* PR과 issue에 글을 올리는 `gh` 명령입니다. `new`는 `create`의 별칭입니다. `merge`는 merge commit의 제목과 본문을 받습니다. */
 const GH_POST = /^\s*(?:\w+=\S*\s+)*gh\s+(?:pr|issue)\s+(?:create|new|edit|comment|review|merge)\b/;
 
-/* `git commit` 명령에서 메시지를 모두 뽑습니다. `-am`처럼 다른 옵션과 붙여 쓴 `-m`, `--trailer` 값, 표준 입력으로 넘긴 메시지도 봅니다. */
+/* `git commit` 명령에서 메시지를 모두 뽑습니다. `-am`처럼 다른 option과 붙여 쓴 `-m`, `--trailer` 값, 표준 입력으로 넘긴 메시지도 봅니다. */
 export function commitMessagesIn(command) {
   return commandSegments(command)
     .filter((segment) => GIT_COMMIT.test(segment))
     .flatMap((segment) => [...optionValues(segment, { short: '-[A-Za-z]*m', long: '--message|--trailer' }), ...stdinBodies(segment)]);
 }
 
-/* `gh` 명령으로 PR이나 이슈에 올리는 제목, 설명, 코멘트를 뽑습니다. `--body-file`로 넘긴 파일은 읽지 않습니다. */
+/* `gh` 명령으로 PR이나 issue에 올리는 제목, 설명, comment를 뽑습니다. `--body-file`로 넘긴 파일은 읽지 않습니다. */
 export function pullRequestTextsIn(command) {
   return commandSegments(command)
     .filter((segment) => GH_POST.test(segment))
@@ -354,7 +428,7 @@ function run() {
   const rules = loadRules(RULES_DOC);
 
   /*
-   * Claude가 이번 요청에서 한국어를 쓰기 전에 skill을 불렀는지 봅니다.
+   * Claude가 이 session에서 한국어를 쓰기 전에 skill을 불렀는지 봅니다.
    * `writerText`를 주면 그 글의 한글이 기준 이상일 때 작성 agent에게 맡겼는지 먼저 봅니다. 질문과 계획처럼 대화에 쓰는 글에는 주지 않습니다.
    */
   const requireSkill = (text, retry, writerText = null) => {
@@ -380,13 +454,13 @@ function run() {
     deny(formatToolViolations(problems, rules));
   }
 
-  /* 3) `git commit`으로 남기는 커밋 메시지와 `gh`로 PR이나 이슈에 올리는 글입니다. */
+  /* 3) `git commit`으로 남기는 commit 메시지와 `gh`로 PR이나 issue에 올리는 글입니다. 새로 쓰는 글이므로 글 전체를 검사합니다. */
   if (toolName === 'Bash') {
     const messages = commitMessagesIn(ti.command);
     const posts = pullRequestTextsIn(ti.command);
     const posted = [...messages, ...posts].join('\n');
-    requireSkill(posted, messages.length > 0 ? '다시 커밋하십시오.' : '명령을 다시 실행하십시오.', posted);
-    for (const [texts, where] of [[messages, '커밋 메시지'], [posts, 'PR이나 이슈에 올릴 글']]) {
+    requireSkill(posted, messages.length > 0 ? '다시 commit하십시오.' : '명령을 다시 실행하십시오.', posted);
+    for (const [texts, where] of [[messages, 'commit 메시지'], [posts, 'PR이나 issue에 올릴 글']]) {
       const problems = texts.flatMap((text) => blockingViolations(checkText(text, rules, 'commit')));
       if (problems.length > 0) deny(formatViolations(problems, rules, where));
     }
@@ -415,17 +489,21 @@ function run() {
 
   const target = targetForPath(rel, rules);
   if (target === null) process.exit(0);
-  /* 작성 agent는 코드를 쓰지 않습니다. 그래서 소스 파일에서는 주석의 한글만 세어 작성 agent를 요구할지 정합니다. */
+  /* 작성 agent는 코드를 쓰지 않습니다. 따라서 소스 파일에서는 주석에 든 한글의 글자 수만 계산해 작성 agent를 요구할지 정합니다. */
   const written = writtenText(toolName, ti);
   requireSkill(written, '다시 쓰십시오.', target === 'comment' ? koreanCommentsOf(written, rel) : written);
 
+  /*
+   * 기존 파일을 고치거나 덮어쓰면 편집 전 파일과 비교해 이번 편집으로 새로 생긴 오류만 막습니다.
+   * 새 파일을 만드는 Write처럼 편집 전 파일이 없거나 읽지 못하면 쓰는 글 전체를 검사합니다. NotebookEdit 도구로 쓰는 셀도 셀 전체를 검사합니다.
+   */
   const after = resultOfEdit(toolName, ti, filePath);
-  const violations = blockingViolations(checkText(after, rules, target, { path: rel }));
+  const before = toolName === 'NotebookEdit' ? null : currentText(filePath);
+  const violations = newErrors(before, after, rules, target, rel);
   if (violations.length > 0) deny(formatViolations(violations, rules, `${rel}, --target ${target}`));
 
-  /* 오류가 없으면 이번에 바뀐 문단에 새로 생긴 경고를 찾습니다. 그 가운데 review-rules에 든 규칙의 경고만 Claude에게 알립니다. NotebookEdit 도구로 셀을 고칠 때는 바뀌기 전 셀과 비교하지 않습니다. */
-  const before = toolName === 'NotebookEdit' ? '' : currentText(filePath);
-  const notes = reviewNotes(before, after, rules, target, rel);
+  /* 새로 생긴 오류가 없으면 이번에 바뀐 문단에 새로 생긴 경고를 찾아 그 가운데 review-rules에 든 규칙의 경고만 Claude에게 알립니다. NotebookEdit 도구로 셀을 고칠 때는 바뀌기 전 셀과 비교하지 않습니다. */
+  const notes = reviewNotes(before ?? '', after, rules, target, rel);
   if (notes.length > 0) {
     /* 검사기 경로는 설치한 프로젝트에서 `.korean-style/scripts/check-korean.mjs`가 됩니다. */
     const checker = relative(PROJECT_ROOT, join(toolRoot(), 'scripts', 'check-korean.mjs')).split(sep).join('/');

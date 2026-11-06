@@ -1,5 +1,5 @@
 {
-  "criteria": "english는 한국어를 모국어로 쓰는 개발자라면 그 문맥에서 쓰지 않을 표현이 든 문장입니다. source-1, source-2, answer-1은 사용자가 Claude Code에서 받아 어색하다고 알려 준 문장입니다. doc-1과 doc-2는 이 도구를 설치한 프로젝트에서 Claude가 쓴 문서 문장입니다. 여기에 옮기면서 경로와 필드 이름만 바꿨습니다. 나머지 english 문장은 skill에 고칠 표현으로 적어 둔 예입니다. natural은 한국 개발자가 쓰는 말로 쓴 문장이고 일부는 english 문장과 내용이 같습니다. natural 문장에 나오는 unit은 배포 단위를 가리키는 코드 용어로 보고 영어로 둡니다.",
+  "criteria": "english는 한국어를 모국어로 쓰는 개발자라면 그 문맥에서 쓰지 않을 표현이 든 문장입니다. 번역투가 여기에 듭니다. source-1, source-2, answer-1은 사용자가 Claude Code에서 받아 어색하다고 알려 준 문장입니다. doc-1과 doc-2는 이 도구를 설치한 프로젝트에서 Claude가 쓴 문서 문장입니다. 여기에 옮기면서 경로와 필드 이름만 바꿨습니다. 나머지 english 문장은 skill에 고칠 표현으로 적어 둔 예입니다. natural은 한국 개발자가 쓰는 말로 쓴 문장이고 일부는 english 문장과 내용이 같습니다. 개발자가 읽는 natural 문장에서는 IT 용어를 이 도구의 기본값대로 영어 원어로 적었고 화면 문구인 source-3과 source-4는 일반 독자가 읽는 말로 적었습니다. natural 문장에 나오는 unit은 deploy 단위를 가리키는 코드 용어로 보고 영어로 둡니다.",
   "batches": [
     {
       "id": "screen",
@@ -44,7 +44,7 @@
             {
               "id": "answer-2",
               "kind": "natural",
-              "text": "테스트를 돌려 보니 두 개가 실패했습니다. 원인은 타임존 설정이었습니다."
+              "text": "test를 돌려 보니 두 개가 실패했습니다. 원인은 timezone 설정이었습니다."
             }
           ]
         }
@@ -90,7 +90,7 @@
               "no": 8,
               "id": "doc-6",
               "kind": "natural",
-              "text": "이 함수는 캐시에 값이 없을 때만 DB를 조회합니다."
+              "text": "이 함수는 cache에 값이 없을 때만 DB를 조회합니다."
             }
           ]
         }
@@ -100,7 +100,7 @@
       "id": "commit",
       "pieces": [
         {
-          "label": "커밋 메시지",
+          "label": "commit 메시지",
           "lines": [
             {
               "id": "commit-1",
@@ -110,7 +110,7 @@
             {
               "id": "commit-2",
               "kind": "natural",
-              "text": "배포가 끝나면 슬랙 채널에 알림이 갑니다."
+              "text": "deploy가 끝나면 Slack 채널에 알림을 보냅니다."
             }
           ]
         },
@@ -130,12 +130,12 @@
             {
               "id": "answer-5",
               "kind": "natural",
-              "text": "로그 파일이 1GB를 넘으면 오래된 것부터 지웁니다."
+              "text": "log 파일이 1GB를 넘으면 오래된 것부터 지웁니다."
             },
             {
               "id": "answer-6",
               "kind": "natural",
-              "text": "권한이 없는 사용자가 이 화면을 열면 로그인 페이지로 보냅니다."
+              "text": "권한이 없는 사용자가 이 화면을 열면 login page로 보냅니다."
             }
           ]
         }

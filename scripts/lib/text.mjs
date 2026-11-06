@@ -7,12 +7,12 @@ export const HANGUL_ANY = /[가-힣ᄀ-ᇿ㄰-㆏]/u;
 /* 목록 표시입니다. */
 export const LIST_MARK = /^\s*(?:[-*+]\s|\d+[.)]\s)/;
 
-/* 정규식에서 특별한 뜻이 있는 글자를 이스케이프해 글자 그대로 찾게 합니다. */
+/* 정규 표현식에서 특별한 뜻이 있는 글자를 escape해 글자 그대로 찾게 합니다. */
 export function escapeRe(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/* 문자 위치를 1부터 세는 줄 번호로 바꿉니다. */
+/* 문자 위치를 1부터 시작하는 줄 번호로 바꿉니다. */
 export function lineOf(text, index) {
   return text.slice(0, index).split('\n').length;
 }
@@ -27,8 +27,8 @@ const FENCE_OPEN = /^\s*(`{3,}|~{3,})(.*)$/;
 const FENCE_CLOSE = /^\s*(`{3,}|~{3,})\s*$/;
 
 /* 줄마다 코드 블록을 여닫는 줄(`fence`), 코드 블록 안(`code`), 그 밖(`text`) 가운데 무엇인지 정합니다.
-   CommonMark 규칙대로, 닫는 fence에는 여는 fence와 같은 글자를 같은 개수 이상 써야 합니다. 그래서 백틱 네 개로 연 block 안에 있는 백틱 세 개짜리 줄은 block을 닫지 않습니다.
-   닫지 않은 block은 글 끝까지 이어집니다. */
+   CommonMark 규칙대로, 닫는 fence에는 여는 fence와 같은 글자를 같은 개수 이상 써야 합니다. 따라서 백틱 네 개로 연 코드 블록 안에 있는 백틱 세 개짜리 줄은 코드 블록을 닫지 않습니다.
+   닫지 않은 코드 블록은 글 끝까지 이어집니다. */
 function fenceLines(lines) {
   let open = null;
   return lines.map((line) => {
@@ -183,7 +183,7 @@ export function sentencesOf(text) {
   return out;
 }
 
-/* 강조 개수처럼 문단이나 항목 단위로 세는 규칙이 쓰는 단위입니다. */
+/* 강조 개수처럼 문단이나 항목 단위로 계산하는 규칙이 쓰는 단위입니다. */
 export function unitsOf(text) {
   const out = [];
   let buffer = [];

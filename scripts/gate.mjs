@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 명령 하나로 자체 검사와 파일 검사, 테스트를 실행합니다. */
+/* 명령 하나로 자체 검사와 파일 검사, test를 실행합니다. */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, relative } from 'node:path';
@@ -8,18 +8,18 @@ import { isEntryPoint, projectRoot, rulesDocPath, toolRoot } from './lib/paths.m
 /* 검사할 프로젝트입니다. */
 const ROOT = projectRoot();
 
-/* 이 도구의 루트 경로입니다. */
+/* 이 도구의 root directory입니다. */
 const TOOL = toolRoot();
 
 /* `--self-check`가 없어도 되는 진입점과 그 이유입니다. */
 const SELF_CHECK_EXEMPT = {
-  'gate.mjs': 'gate는 검사기와 설치 스크립트의 자체 검사를 실행하는 스크립트이므로 --self-check를 두면 자기 자신을 검사하게 됩니다.',
+  'gate.mjs': 'gate는 검사기와 설치 script의 자체 검사를 실행하는 script이므로 --self-check를 두면 자기 자신을 검사하게 됩니다.',
 };
 
-/* hook은 Claude Code가 stdin으로 주는 JSON이나 Git이 넘겨 주는 메시지 파일을 받으므로 `--self-check` 옵션이 없습니다. */
+/* hook은 Claude Code가 stdin으로 주는 JSON이나 Git이 넘겨 주는 메시지 파일을 받으므로 `--self-check` option이 없습니다. */
 const HOOK_DIR = 'hooks';
 
-/* 실행할 테스트 파일입니다. */
+/* 실행할 test 파일입니다. */
 function testFiles() {
   const dir = join(TOOL, 'test');
   /* 설치된 프로젝트에는 `test/`가 없습니다. */
@@ -28,7 +28,7 @@ function testFiles() {
     .filter((name) => name.endsWith('.test.mjs'))
     .sort()
     .map((name) => join(dir, name));
-  if (found.length === 0) throw new Error('test/에 테스트 파일이 없습니다');
+  if (found.length === 0) throw new Error('test/에 test 파일이 없습니다');
   return found;
 }
 
@@ -48,7 +48,7 @@ function listScripts() {
   return out.sort((a, b) => a.rel.localeCompare(b.rel));
 }
 
-/* 도구 안의 스크립트 하나를 가리키는 절대 경로입니다. */
+/* 도구 안의 script 하나를 가리키는 절대 경로입니다. */
 const script = (...parts) => join(TOOL, 'scripts', ...parts);
 
 function run(label, args) {
@@ -68,18 +68,18 @@ function selfCheckContract(scripts) {
       exempt.push({ name: s.rel, reason: SELF_CHECK_EXEMPT[s.name] });
       continue;
     }
-    /* `lib/` 아래는 모듈이고 진입점이 아닙니다. */
+    /* `lib/` 아래는 module이고 진입점이 아닙니다. */
     if (s.dir.startsWith('lib')) continue;
     if (s.dir === HOOK_DIR) {
       exempt.push({
         name: s.rel,
-        reason: 'hook은 Claude Code가 stdin으로 주는 JSON이나 Git이 넘겨 주는 메시지 파일을 받으므로 --self-check 옵션이 없습니다. 대신 test/의 테스트가 검사합니다.',
+        reason: 'hook은 Claude Code가 stdin으로 주는 JSON이나 Git이 넘겨 주는 메시지 파일을 받으므로 --self-check option이 없습니다. 대신 test/의 test 파일이 hook을 검사합니다.',
       });
       continue;
     }
     if (!readFileSync(s.abs, 'utf-8').includes('--self-check')) missing.push(s.rel);
   }
-  process.stdout.write('\n=== 자체 검사 옵션 ===\n');
+  process.stdout.write('\n=== 자체 검사 option ===\n');
   process.stdout.write(`자체 검사가 없는 진입점: ${missing.length}개\n`);
   for (const rel of missing) process.stdout.write(`  없음: ${rel}\n`);
   process.stdout.write(`면제: ${exempt.length}개\n`);
@@ -91,11 +91,11 @@ function main() {
   const only = process.argv.includes('--self-check-only');
   const results = [];
 
-  results.push(['자체 검사 옵션', selfCheckContract(listScripts())]);
+  results.push(['자체 검사 option', selfCheckContract(listScripts())]);
   results.push(['검사기 자체 검사', run('검사기 자체 검사', [script('check-korean.mjs'), '--self-check'])]);
-  /* 설치 스크립트는 설치된 프로젝트로 복사되지 않습니다. */
+  /* 설치 script는 설치된 프로젝트로 복사되지 않습니다. */
   if (existsSync(script('install.mjs'))) {
-    results.push(['설치 스크립트 자체 검사', run('설치 스크립트 자체 검사', [script('install.mjs'), '--self-check'])]);
+    results.push(['설치 script 자체 검사', run('설치 script 자체 검사', [script('install.mjs'), '--self-check'])]);
   }
 
   if (!only) {
@@ -103,13 +103,13 @@ function main() {
     const doc = relative(ROOT, rulesDocPath(ROOT));
     results.push(['규칙 문서 검사', run('규칙 문서 검사', [script('check-korean.mjs'), '--file', doc])]);
     results.push(['전체 파일 검사', run('전체 파일 검사', [script('check-korean.mjs'), '--all'])]);
-    /* 테스트 파일 이름을 하나씩 적지 않고 test/에서 찾습니다. */
+    /* test 파일 이름을 하나씩 적지 않고 test/에서 찾습니다. */
     const tests = testFiles();
     if (tests === null) {
       /* 건너뛰었다는 사실을 반드시 출력합니다. */
-      process.stdout.write('\n=== 테스트 ===\n설치된 프로젝트에는 test/가 없으므로 건너뜁니다. 이 도구의 저장소에서 실행하십시오.\n');
+      process.stdout.write('\n=== test ===\n설치된 프로젝트에는 test/가 없으므로 건너뜁니다. test는 이 도구의 repository에서 실행해 주십시오.\n');
     } else {
-      results.push(['테스트', run('테스트', ['--test', ...tests])]);
+      results.push(['test', run('test', ['--test', ...tests])]);
     }
   }
 

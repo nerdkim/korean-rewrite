@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 실제 모델의 답변을 비교하는 스크립트입니다. 유료 API를 쓰므로 --run을 줄 때만 모델을 호출합니다. --with-hooks를 주면 이 도구를 설치한 프로젝트에서 hook과 skill이 실제로 동작합니다. 주지 않으면 모든 프로필의 프로젝트에서 hook과 skill, Claude Code의 내장 도구를 끕니다. */
+/* 실제 model의 답변을 비교하는 script입니다. 유료 API를 쓰므로 --run을 줄 때만 model을 호출합니다. --with-hooks를 주면 이 도구를 설치한 프로젝트에서 hook과 skill이 실제로 동작합니다. 주지 않으면 모든 프로필의 프로젝트에서 hook과 skill, Claude Code의 내장 도구를 끕니다. */
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -15,7 +15,10 @@ import { main as reviewerMain } from './eval-reviewer.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /* 집계표에 쓰는 프로필 이름입니다. */
-const PROFILE_LABELS = { baseline: '이 도구가 없는 프로젝트', installed: '이 도구를 설치한 프로젝트', legacy: '예전 작성 지침을 둔 프로젝트' };
+const PROFILE_LABELS = { baseline: '이 도구가 없는 프로젝트', installed: '이 도구를 설치한 프로젝트', legacy: '예전 output style을 둔 프로젝트' };
+
+/* IT 용어를 한글 음차로 쓴 곳을 찾는 규칙입니다. 일반 뜻도 있어 경고로만 알리는 음차도 함께 집계합니다. */
+const TRANSLITERATION_RULES = new Set(['transliteration', 'ambiguous-transliteration']);
 
 /* Stop hook이 답변을 다시 쓰게 했는지 hook 출력으로 판단합니다. 출력이 JSON이 아니면 다시 쓰게 하지 않은 것으로 봅니다. */
 function stopBlocked(responses) {
@@ -30,22 +33,23 @@ function stopBlocked(responses) {
 }
 
 /*
- * 저장된 답변을 프로필마다 셉니다. 사람이 읽고 판단해야 하는 항목은 세지 않고 검사기와 기록으로 셀 수 있는 것만 셉니다.
- * emoji와 가운뎃점은 인라인 코드만 빼고 찾으므로 코드 블록 안에 있어도 셉니다.
- * 저장된 답변은 Stop hook이 다시 쓰게 했다면 다시 쓴 글이므로 다시 쓰게 한 답변 수도 함께 셉니다.
+ * 저장된 답변을 프로필마다 집계합니다. 사람이 읽고 판단해야 하는 항목은 빼고 검사기와 기록으로 확인할 수 있는 항목만 집계합니다.
+ * emoji와 가운뎃점은 인라인 코드만 빼고 찾으므로 코드 블록 안에 있어도 집계합니다.
+ * Stop hook이 다시 쓰게 한 답변은 다시 쓴 글이 저장되므로 다시 쓰게 한 답변 수도 함께 집계합니다.
+ * 검사기는 답변에서 IT 용어의 한글 음차와 번역어를 경고로만 보고하므로 이 경고만 나온 답변은 오류를 찾은 답변 수에 들어가지 않습니다. 따라서 음차나 번역어를 찾은 답변은 별도 항목으로 집계합니다. 사용자가 준 글을 다듬은 답변처럼 한글 표기를 그대로 두어야 하는 답변도 이 항목에 들어갑니다.
  */
 export function summarize(rows, rules) {
-  /* 프로필 이름이 `__proto__` 같은 값이어도 다른 객체에 속성이 생기지 않게 프로토타입 없는 객체에 모읍니다. */
+  /* 프로필 이름이 `__proto__` 같은 값이어도 다른 객체에 속성이 생기지 않게 prototype이 없는 객체에 모읍니다. */
   const out = Object.create(null);
   for (const row of rows) {
     if (!Array.isArray(row?.answers) || row.answers.some((answer) => typeof answer?.text !== 'string')) {
       throw new Error(`answers 배열이 없거나 답변 글(text)이 빠진 행입니다: ${JSON.stringify(row?.profile ?? null)}`);
     }
-    const t = (out[row.profile] ??= { answers: 0, skill: 0, rewritten: 0, errors: 0, register: 0, emoji: 0, middot: 0, attribution: 0, chars: 0, costUsd: 0, seconds: 0,
-      firstAnswers: 0, firstCostUsd: 0, repeatAnswers: 0, repeatCostUsd: 0 });
+    const t = (out[row.profile] ??= { answers: 0, skill: 0, rewritten: 0, errors: 0, register: 0, transliteration: 0, looseTranslation: 0, emoji: 0, middot: 0, attribution: 0,
+      chars: 0, costUsd: 0, seconds: 0, firstAnswers: 0, firstCostUsd: 0, repeatAnswers: 0, repeatCostUsd: 0 });
     t.costUsd += row.costUsd ?? 0;
     t.seconds += row.seconds ?? 0;
-    /* 같은 요청을 다시 보내면 API가 처음 요청 때 캐시에 저장해 둔 입력을 다시 읽어 비용이 줄어듭니다. 그래서 다시 보낸 요청의 비용은 따로 셉니다. `run`이 없는 행은 처음 보낸 요청으로 봅니다. */
+    /* 같은 요청을 다시 보내면 API가 처음 요청 때 cache에 저장해 둔 입력을 다시 읽으므로 비용이 줄어듭니다. 따라서 다시 보낸 요청의 비용은 따로 집계합니다. `run`이 없는 행은 처음 보낸 요청으로 봅니다. */
     if ((row.run ?? 1) > 1) {
       t.repeatAnswers += row.answers.length;
       t.repeatCostUsd += row.costUsd ?? 0;
@@ -62,6 +66,8 @@ export function summarize(rows, rules) {
       if (rewritten) t.rewritten += 1;
       if (blockingViolations(found).length > 0) t.errors += 1;
       if (found.some((v) => v.rule === 'wrong-register')) t.register += 1;
+      if (found.some((v) => TRANSLITERATION_RULES.has(v.rule))) t.transliteration += 1;
+      if (found.some((v) => v.rule === 'loose-translation')) t.looseTranslation += 1;
       if (found.some((v) => v.rule === 'ai-attribution')) t.attribution += 1;
       if (CHAR_CLASSES.emoji.re.test(prose) || SHORTCODE_RE.test(prose)) t.emoji += 1;
       if (CHAR_CLASSES.middot.re.test(prose)) t.middot += 1;
@@ -77,12 +83,12 @@ export function summarize(rows, rules) {
 /* `summarize`의 결과를 README에 옮길 수 있는 Markdown 표로 만듭니다. */
 export function formatSummary(summary) {
   const profiles = Object.keys(summary);
-  if (profiles.length === 0) throw new Error('셀 답변이 없습니다');
+  if (profiles.length === 0) throw new Error('집계할 답변이 없습니다');
   /* 답변이 없는 프로필은 평균을 낼 수 없으므로 `-` 기호를 씁니다. */
   const ratio = (p, key, answers, digits, unit) => (summary[p][answers] === 0 ? '-' : `${(summary[p][key] / summary[p][answers]).toFixed(digits)}${unit}`);
   const average = (p, key, digits, unit) => ratio(p, key, 'answers', digits, unit);
   const count = (key) => profiles.map((p) => `${summary[p].answers}개 중 ${summary[p][key]}개`);
-  /* 같은 요청을 다시 보낸 결과가 있으면 비용을 두 줄로 나눕니다. 그러면 캐시를 쓰지 못해 다시 보낸 요청의 비용이 줄지 않은 경우를 표에서 바로 알아볼 수 있습니다. */
+  /* 같은 요청을 다시 보낸 결과가 있으면 비용을 두 줄로 나눕니다. 그러면 다시 보낸 요청이 cache를 쓰지 못해 비용이 줄지 않은 경우를 표에서 바로 알아볼 수 있습니다. */
   const cost = profiles.some((p) => summary[p].repeatAnswers > 0)
     ? [['처음 보낸 요청에서 답변 하나에 든 평균 비용', profiles.map((p) => ratio(p, 'firstCostUsd', 'firstAnswers', 3, '달러'))],
       ['같은 요청을 다시 보냈을 때 답변 하나에 든 평균 비용', profiles.map((p) => ratio(p, 'repeatCostUsd', 'repeatAnswers', 3, '달러'))]]
@@ -92,6 +98,8 @@ export function formatSummary(summary) {
     ['Stop hook이 다시 쓰게 한 답변', count('rewritten')],
     ['검사기가 오류를 찾은 답변', count('errors')],
     ['검사기가 해요체 어미를 찾은 답변', count('register')],
+    ['검사기가 IT 용어의 한글 음차를 찾은 답변', count('transliteration')],
+    ['검사기가 IT 용어의 번역어를 찾은 답변', count('looseTranslation')],
     ['emoji가 들어간 답변', count('emoji')],
     ['가운뎃점이 들어간 답변', count('middot')],
     ['Claude Code 생성 표시가 들어간 답변', count('attribution')],
@@ -133,7 +141,7 @@ function main() {
     if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error(`${key} 다음에 값이 필요합니다`);
     return args[i + 1];
   };
-  /* `--reviewer`를 주면 답변 대신 검토 모델이 영어식 표현을 얼마나 지적하는지 측정합니다. */
+  /* `--reviewer`를 주면 답변 대신 검토 model이 번역투를 얼마나 지적하는지 측정합니다. */
   if (args.includes('--reviewer')) {
     reviewerMain(args.filter((arg) => arg !== '--reviewer'));
     return;
@@ -144,10 +152,10 @@ function main() {
     return;
   }
   if (args.includes('--summary')) {
-    /* `--summary` 바로 뒤에 이어 쓴 결과 디렉터리나 results.json 경로만 받습니다. API를 호출하지 않습니다. */
+    /* `--summary` 바로 뒤에 이어 쓴 결과 directory나 results.json 경로만 받습니다. API를 호출하지 않습니다. */
     const after = args.slice(args.indexOf('--summary') + 1);
     const end = after.findIndex((arg) => arg.startsWith('--'));
-    if (end !== -1) throw new Error('--summary는 다른 옵션과 함께 쓰지 않습니다');
+    if (end !== -1) throw new Error('--summary는 다른 option과 함께 쓰지 않습니다');
     const files = [...new Set(after.map((path) => resolve(path.endsWith('.json') ? path : join(path, 'results.json'))))];
     if (files.length === 0) throw new Error('--summary 다음에 평가 결과 경로가 필요합니다');
     const rows = files.flatMap((file) => {
@@ -234,7 +242,7 @@ function main() {
         if (response.is_error || typeof response.result !== 'string') throw new Error(`${file}: ${JSON.stringify(response)}`);
         const parsed = individual ? [{ id: group[0].id, text: response.result.trim() }] : answersOf(response.result, cases);
         const answers = parsed.map((a, i) => assessAnswer(a, group[i]));
-        if (!Object.keys(response.modelUsage ?? {}).includes(model)) throw new Error(`modelUsage에 요청한 모델이 없습니다: ${JSON.stringify(response.modelUsage)}`);
+        if (!Object.keys(response.modelUsage ?? {}).includes(model)) throw new Error(`modelUsage에 요청한 model이 없습니다: ${JSON.stringify(response.modelUsage)}`);
         const usage = response.usage ?? {};
         const row = { profile, model, run, actualModels: Object.keys(response.modelUsage ?? {}),
           seconds: (Date.now() - started) / 1000, apiMs: response.duration_api_ms,
@@ -244,7 +252,7 @@ function main() {
         results.push(row);
         writeFileSync(join(out, 'results.json'), JSON.stringify({ cli: cli.stdout.trim(), date: new Date().toISOString(),
           casesHash: createHash('sha256').update(JSON.stringify(cases)).digest('hex'), hashes, effort, batch: !individual, hooks: withHooks, results }, null, 2) + '\n');
-        console.log(`${file}: ${row.seconds.toFixed(1)}초, 입력 토큰 ${row.inputTokens}, 출력 토큰 ${row.outputTokens}, 제약을 지킨 답변 ${answers.filter(a => !a.missing.length && !a.forbidden.length && !a.overLength && !a.wrongSentenceCount && !a.metaComment).length}/${group.length}`);
+        console.log(`${file}: ${row.seconds.toFixed(1)}초, 입력 token ${row.inputTokens}, 출력 token ${row.outputTokens}, 제약을 지킨 답변 ${answers.filter(a => !a.missing.length && !a.forbidden.length && !a.overLength && !a.wrongSentenceCount && !a.metaComment).length}/${group.length}`);
       }
     }
   } finally { rmSync(scratch, { recursive: true, force: true }); }

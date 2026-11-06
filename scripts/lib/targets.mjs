@@ -3,13 +3,13 @@ import { relative, resolve, sep } from 'node:path';
 
 export const TARGETS = ['chat', 'doc', 'comment', 'commit'];
 
-/* 사람이 직접 읽으므로 말투 규칙에 더해 높임 표현 규칙도 걸리는 종류입니다. */
+/* 사람이 직접 읽으므로 말투 규칙뿐 아니라 높임 표현 규칙도 걸리는 종류입니다. */
 export const HUMAN_TARGETS = new Set(['chat']);
 
 /* 한국어 산문이 들어 있어서 한국어 문법 규칙이 걸리는 종류입니다. */
 export const KOREAN_TARGETS = new Set(['chat', 'doc', 'comment', 'commit']);
 
-/* glob을 정규식으로 바꿉니다. */
+/* glob을 정규 표현식으로 바꿉니다. */
 export function globToRegExp(glob) {
   let out = '';
   for (let i = 0; i < glob.length; i += 1) {
@@ -38,7 +38,7 @@ export function matchesAny(relPath, globs) {
   return globs.some((g) => globToRegExp(g).test(p));
 }
 
-/* 프로젝트 루트 기준 상대 경로입니다. */
+/* 프로젝트 root directory를 기준으로 한 상대 경로입니다. */
 export function toProjectRelative(filePath, projectRoot) {
   const rel = relative(projectRoot, resolve(filePath));
   if (rel.startsWith('..') || rel.length === 0) return null;
@@ -59,6 +59,12 @@ export function isSourcePath(relPath) {
 
 export function isDocPath(relPath) {
   return /\.(?:md|mdx|markdown)$/i.test(relPath);
+}
+
+/* 규칙 문서의 `general-reader-globs`에 든 경로인지 봅니다. 이용자 공지처럼 일반 독자가 읽는 파일에는 IT 용어 표 규칙을 적용하지 않습니다. */
+export function isGeneralReaderPath(relPath, rules) {
+  const globs = rules.generalReaderGlobs ?? [];
+  return typeof relPath === 'string' && globs.length > 0 && matchesAny(relPath, globs);
 }
 
 /* 경로를 보고 파일의 종류를 정합니다. 검사하지 않는 파일이면 null입니다. */

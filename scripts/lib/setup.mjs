@@ -3,18 +3,18 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { INSTALLED_DIR } from './paths.mjs';
 
-/* hook 스크립트가 없는 작업 트리에서 UserPromptSubmit hook이 Claude에게 전하는 안내입니다. hook 명령이 이 안내를 작은따옴표로 감싸므로 안내에는 작은따옴표를 넣지 않습니다. */
+/* hook script가 없는 worktree에서 UserPromptSubmit hook이 Claude에게 전하는 안내입니다. hook 명령이 이 안내를 작은따옴표로 감싸므로 안내에는 작은따옴표를 넣지 않습니다. */
 export const MISSING_SCRIPTS_NOTICE =
-  '이 작업 트리에는 한국어 작성 도구의 hook 스크립트(.korean-style/scripts/)가 없어서 한국어 검사가 동작하지 않습니다. ' +
-  '이 스크립트는 Git에서 제외되므로 저장소를 새로 clone하거나 git worktree로 작업 트리를 만들면 설치 명령을 다시 실행해야 생깁니다. ' +
-  '사용자에게 프로젝트 루트에서 처음 설치할 때 쓴 설치 명령을 다시 실행해 달라고 알려 주십시오. ' +
-  '예: npx -y github:nerdkim/im-a-korean-ai-in-seoul --target .';
+  '이 worktree에는 한국어 작성 도구의 hook script(.korean-style/scripts/)가 없어서 한국어 검사가 동작하지 않습니다. ' +
+  '이 script는 Git에서 제외되므로 repository를 새로 clone하거나 git worktree로 새 worktree를 만들면 설치 명령을 다시 실행해야 생깁니다. ' +
+  '사용자에게 프로젝트 root directory에서 처음 설치할 때 쓴 설치 명령을 다시 실행해 달라고 알려 주십시오. ' +
+  '예: npx -y github:nerdkim/korean-rewrite --target .';
 
 /*
  * Claude Code 2.1.310은 이 환경 변수에 값이 없으면 API 요청에 `thinking.display: "updates"`를 넣습니다.
- * 그러면 서버는 Claude가 도구를 부르는 사이에 쓴 진행 보고 가운데 일부를 그대로 보내지 않고 요약한 문장으로 바꿔 보냅니다.
- * 이 문장은 Claude가 쓴 글이 아니어서 skill과 작성 지침을 거치지 않습니다. hook도 이 문장을 검사하지 못합니다.
- * 값을 0으로 두면 서버는 요약한 문장 대신 빈 블록을 보내고 화면에는 아무 문장도 나오지 않습니다.
+ * 그러면 server는 Claude가 도구를 부르는 사이에 쓴 진행 보고 가운데 일부를 그대로 보내지 않고 요약한 문장으로 바꿔 보냅니다.
+ * 이 문장은 Claude가 쓴 글이 아니어서 skill과 output style을 거치지 않습니다. hook도 이 문장을 검사하지 못합니다.
+ * 값을 0으로 두면 server는 요약한 문장 대신 빈 블록을 보내고 화면에는 아무 문장도 나오지 않습니다.
  */
 export const PROGRESS_SUMMARY_ENV = 'CLAUDE_CODE_THINKING_DISPLAY_UPDATES';
 
@@ -24,7 +24,7 @@ export function isOffValue(value) {
   return ['0', 'false', 'no', 'off'].includes(String(value).trim().toLowerCase());
 }
 
-/* settings.json에 넣을 hook 명령을 만듭니다. 설치한 프로젝트에서는 hook 스크립트를 Git에서 제외하므로 저장소를 새로 clone하면 스크립트가 없습니다. 이때 node가 "Cannot find module"로 실패하지 않도록 스크립트가 있을 때만 실행합니다. 스크립트가 없으면 UserPromptSubmit hook만 안내를 남깁니다. 다른 hook은 아무것도 하지 않습니다. 이 도구의 저장소는 스크립트를 커밋하므로 스크립트를 바로 실행합니다. */
+/* settings.json에 넣을 hook 명령을 만듭니다. 설치한 프로젝트에서는 hook script를 Git에서 제외하므로 repository를 새로 clone하면 script가 없습니다. 이때 node가 "Cannot find module"로 실패하지 않도록 script가 있을 때만 실행합니다. script가 없으면 UserPromptSubmit hook만 안내를 남깁니다. 다른 hook은 아무것도 하지 않습니다. 이 도구의 repository에는 script가 commit되어 있으므로 script를 바로 실행합니다. */
 export function hookCommand(name, installed = true) {
   const script = `$CLAUDE_PROJECT_DIR/${installed ? `${INSTALLED_DIR}/` : ''}scripts/hooks/${name}.mjs`;
   if (!installed) return `node "${script}"`;
@@ -64,7 +64,7 @@ export function commitHookPath(root) {
   return path ? resolve(root, path) : null;
 }
 
-// 여러 작업 트리가 hook 하나를 같이 써도 이 hook은 커밋하는 작업 트리의 검사기를 실행합니다.
+// 여러 worktree가 hook 하나를 같이 써도 이 hook은 commit하는 worktree의 검사기를 실행합니다.
 const HOOK_MARKER = '// korean-style commit hook';
 const COMMIT_LAUNCHER = `#!/usr/bin/env node
 ${HOOK_MARKER}
@@ -77,7 +77,7 @@ ${HOOK_MARKER}
   const root = repo.stdout.trim();
   let script = join(root, '.korean-style/scripts/hooks/commit-msg.mjs');
   if (!existsSync(script)) {
-    try { if (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).name !== 'im-a-korean-ai-in-seoul') process.exit(0); }
+    try { if (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).name !== 'korean-rewrite') process.exit(0); }
     catch { process.exit(0); }
     script = join(root, 'scripts/hooks/commit-msg.mjs');
   }
@@ -119,8 +119,8 @@ export function installCommitHook(root, dry = false) {
 
 export function reportCommitHook(result) {
   const labels = { linked: 'commit-msg hook을 설치했습니다', already: 'commit-msg hook이 이미 설치되어 있습니다',
-    occupied: '다른 commit-msg hook이 이미 있어 그대로 두었습니다. 사람이 직접 하거나 다른 프로그램으로 하는 커밋도 검사하려면 그 hook이 검사기를 실행하도록 고쳐야 합니다',
+    occupied: '다른 commit-msg hook이 이미 있어 그대로 두었습니다. 사람이 직접 하거나 다른 프로그램으로 하는 commit도 검사하려면 그 hook이 검사기를 실행하도록 고쳐야 합니다',
     broken: '기존 commit-msg hook의 symlink가 끊겼습니다. 그 hook을 복구해야 합니다',
-    'not-git': '프로젝트 루트에 .git이 없어 commit-msg hook은 설치하지 않습니다.', would: 'commit-msg hook을 설치할 경로입니다' };
+    'not-git': '프로젝트 root directory에 .git이 없어 commit-msg hook은 설치하지 않습니다.', would: 'commit-msg hook을 설치할 경로입니다' };
   console.log(`${labels[result.state] ?? result.state}${result.path ? `: ${result.path}` : ''}`);
 }

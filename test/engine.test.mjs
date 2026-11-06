@@ -1,4 +1,4 @@
-/* 검사 엔진 테스트입니다. */
+/* 검사기 코드 test입니다. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync } from 'node:fs';
@@ -14,7 +14,7 @@ import { globToRegExp, targetForPath } from '../scripts/lib/targets.mjs';
 const rulesOf = (lines) => parseRuleBlock(lines.join('\n'));
 const names = (violations) => violations.map((v) => v.rule);
 
-/* ---------------------------------------------------------------------------  회귀 테스트입니다. 실제로 있었던 결함을 재현합니다. */
+/* ---------------------------------------------------------------------------  회귀 test입니다. 실제로 있었던 결함을 재현합니다. */
 
 test('회귀: 규칙 문서를 못 읽어도 금지 문자 규칙은 남는다', () => {
   /* 실제로 있었던 결함을 재현합니다. */
@@ -49,7 +49,7 @@ test('회귀: 이중피동은 활용형까지 걸린다', () => {
   }
 });
 
-test('회귀: 백틱으로 감싼 항목 사이의 쉼표는 절을 잇는 쉼표로 세지 않는다', () => {
+test('회귀: 백틱으로 감싼 항목 사이의 쉼표는 절을 잇는 쉼표로 보지 않는다', () => {
   /* 실제로 있었던 결함을 재현합니다. */
   const r = rulesOf(['max-comma-per-sentence: 2', 'enumeration-word-max: 3']);
   const quoted = '`~적`은 `인`, `으로`, `이다`, `성` 가운데 하나가 따라옵니다.';
@@ -177,7 +177,7 @@ test('말투 이름을 알 수 없으면 어미를 금지하지 않는다', () =
 
 const ATTRIBUTION = rulesOf(['banned-attribution: Generated with [Claude Code], Generated with Claude Code, noreply@anthropic.com']);
 
-test('Claude Code가 커밋 메시지와 PR 설명 끝에 붙이는 생성 표시를 막는다', () => {
+test('Claude Code가 commit 메시지와 PR 설명 끝에 붙이는 생성 표시를 막는다', () => {
   const lines = [
     '🤖 Generated with [Claude Code](https://claude.com/claude-code)',
     'Generated with [Claude Code](https://claude.com/claude-code)',
@@ -255,7 +255,7 @@ test('문자열 안에 있는 `//` 뒤는 주석으로 보지 않는다', () => 
   assert.equal(koreanCommentsOf(src, 'a.mjs').trim(), '', '문자열은 주석이 아닙니다');
 });
 
-test('파이썬 삼중 따옴표 문자열은 주석으로 본다', () => {
+test('Python 삼중 따옴표 문자열은 주석으로 본다', () => {
   const src = '"""\n확인했어요.\n"""\nx = 1\n';
   assert.ok(koreanCommentsOf(src, 'a.py').includes('확인했어요'));
 });
@@ -266,7 +266,7 @@ test('닫히지 않은 따옴표가 있어도 그 뒤의 주석을 뽑는다', (
   assert.ok(koreanCommentsOf(src, 'a.mjs').includes('이 주석은 보여야 합니다'));
 });
 
-test('주석 표시는 어절로 세지 않는다', () => {
+test('주석 표시는 어절 수에 넣지 않는다', () => {
   const extracted = koreanCommentsOf('// 확인했습니다 그리고 정리했습니다\n', 'a.mjs');
   assert.ok(!extracted.includes('//'), '`//` 기호가 남으면 어절 수에 들어갑니다');
   assert.ok(extracted.includes('확인했습니다'));
@@ -306,7 +306,7 @@ test('코드 블록 안을 따로 검사할 때 규칙 블록은 뺀다', () => 
   assert.equal(checkText(doc, r, 'doc').length, 0);
 });
 
-/* 다른 사람이나 모델이 쓴 글을 인용 표시 사이에 옮겨 적은 문서입니다. 인용한 글에는 가운뎃점과 해요체 문장이 그대로 들어 있습니다. */
+/* 다른 사람이나 model이 쓴 글을 인용 표시 사이에 옮겨 적은 문서입니다. 인용한 글에는 가운뎃점과 해요체 문장이 그대로 들어 있습니다. */
 const QUOTE_RULES = ['register: 합니다체', 'banned-char: middot', 'quote-marker: korean-style-quote'];
 const QUOTED_ANSWER = (close = '<!-- /korean-style-quote -->') =>
   ['아래는 받은 답변입니다.', '', '<!-- korean-style-quote -->', '> 결제 API·DB를 확인해 보세요.', close, '', '설명을 마칩니다.'].join('\n');
@@ -318,8 +318,8 @@ test('문서에서 인용 표시 사이에 옮겨 적은 글은 검사하지 않
   assert.deepEqual(names(checkText(outside, r, 'doc')), ['wrong-register'], '인용 구간 밖은 계속 검사해야 합니다');
 });
 
-test('답변과 커밋 메시지에서는 인용 표시 사이도 검사한다', () => {
-  /* 답변이나 커밋 메시지를 인용 표시로 감싸서 검사를 피하지 못하게 합니다. */
+test('답변과 commit 메시지에서는 인용 표시 사이도 검사한다', () => {
+  /* 답변이나 commit 메시지를 인용 표시로 감싸서 검사를 피하지 못하게 합니다. */
   const r = rulesOf(QUOTE_RULES);
   for (const target of ['chat', 'commit']) {
     assert.ok(names(checkText(QUOTED_ANSWER(), r, target)).includes('banned-char'), `${target} 검사에서도 가운뎃점을 잡아야 합니다`);
@@ -411,7 +411,7 @@ test('목록 항목은 이어지는 줄까지 한 단위로 묶는다', () => {
   assert.equal(units.length, 2, `항목 둘이어야 하는데 ${units.length}개입니다`);
 });
 
-test('어절은 공백으로 나눠 센다', () => {
+test('어절 수는 공백으로 나눠 계산한다', () => {
   assert.equal(wordCount('한 줄 주석'), 3);
   assert.equal(wordCount('   '), 0);
 });
@@ -469,8 +469,8 @@ test('회귀: 자모가 분리된(NFD) 한글을 한국어가 없는 글로 보�
   assert.equal(names(checkText(decomposed, r, 'chat')).includes('korean-required'), false);
 });
 
-test('subagent 프롬프트의 영어식 표현과 이중피동을 잡는다', () => {
-  /* 작성 지침은 subagent에 적용되지 않으므로 프롬프트만이라도 여기서 검사합니다. */
+test('subagent prompt의 번역투와 이중피동을 잡는다', () => {
+  /* output style은 subagent에 적용되지 않으므로 prompt만이라도 여기서 검사합니다. */
   const r = rulesOf([
     'agent-tool-fields: Task.prompt',
     'translationese-patterns: 에 의하여=~로',
@@ -479,12 +479,12 @@ test('subagent 프롬프트의 영어식 표현과 이중피동을 잡는다', (
   ]);
   const input = { prompt: '이 파일은 검사기에 의하여 읽혀집니다. 결과를 보고하십시오.', subagent_type: 'explorer' };
   const problems = checkToolCall('Task', input, r, 'doc');
-  assert.deepEqual(names(problems), ['double-passive', 'translationese'], '영어식 표현과 이중피동을 잡아야 합니다');
+  assert.deepEqual(names(problems), ['double-passive', 'translationese'], '번역투와 이중피동을 잡아야 합니다');
   assert.ok(problems.every((p) => typeof p.where === 'string' && p.where.length > 0));
 });
 
-test('영어로 쓴 subagent 프롬프트는 거부하지 않는다', () => {
-  /* 규칙을 어긴 한국어 프롬프트를 막는 것보다 영어 프롬프트를 통과시키는 것이 더 중요합니다. */
+test('영어로 쓴 subagent prompt는 거부하지 않는다', () => {
+  /* 규칙을 어긴 한국어 prompt를 막는 것보다 영어 prompt를 통과시키는 것이 더 중요합니다. */
   const r = rulesOf(['agent-tool-fields: Task.prompt', 'korean-required-min-chars: 20', 'register: 합니다체']);
   const input = { prompt: 'Read scripts/lib/text.mjs and report the sentence splitting contract in detail.' };
   assert.equal(checkToolCall('Task', input, r, 'doc').length, 0);
@@ -497,7 +497,7 @@ test('chat-tool-fields와 agent-tool-fields가 서로 섞이지 않는다', () =
   assert.equal(toolFieldTexts('Task', { prompt: '확인했습니다' }, r, 'agentToolFields').length, 1);
 });
 
-test('glob의 `**`는 그 자리에 디렉터리가 없어도 일치한다', () => {
+test('glob의 `**`는 그 자리에 directory가 없어도 일치한다', () => {
   assert.ok(globToRegExp('docs/**/*.md').test('docs/a.md'));
   assert.ok(globToRegExp('docs/**/*.md').test('docs/x/y/a.md'));
   assert.ok(!globToRegExp('docs/*.md').test('docs/x/a.md'));
@@ -511,8 +511,8 @@ test('skip-globs에 든 경로는 문서인지 소스 파일인지 따지기 전
   assert.equal(targetForPath('a.png', r), null);
 });
 
-test('두 번 파싱해도 목록 항목이 늘어나지 않는다', () => {
-  /* 기본값을 참조로 복사하면 다시 파싱할 때 같은 배열에 항목을 또 넣으므로 위반 하나를 두 번 보고합니다. */
+test('두 번 parse해도 목록 항목이 늘어나지 않는다', () => {
+  /* 기본값을 참조로 복사하면 다시 parse할 때 같은 배열에 항목을 또 넣으므로 위반 하나를 두 번 보고합니다. */
   const block = 'banned-address: 당신\nconjunctive-adverbs: 그러나';
   const a = parseRuleBlock(block);
   const b = parseRuleBlock(block);
@@ -554,7 +554,7 @@ test('빈 텍스트는 통과한다', () => {
 /* `docs/rules.md`와 같은 한도입니다. 네 번 이상 나와야 밀도를 따집니다. */
 const contrastRules = () => rulesOf(['max-contrast-per-1k: ko=0.8, en=0.5', 'density-rule-floor: 4', 'density-margin: 2']);
 
-/* 최소 횟수를 1로, 여유를 0으로 두어 한 번만 나와도 밀도를 따지게 합니다. 표현 하나를 세는지만 봅니다. */
+/* 최소 횟수를 1로, 여유를 0으로 두어 한 번만 나와도 밀도를 따지게 합니다. 표현 하나를 대조 구문 횟수에 넣는지만 봅니다. */
 const contrastOnce = () => rulesOf(['max-contrast-per-1k: ko=0.8, en=0.5', 'density-rule-floor: 1', 'density-margin: 0']);
 
 test('`docs/rules.md`와 같은 한도에서는 짧은 글에 `A가 아니라 B`가 네 번 나오면 걸린다', () => {
@@ -567,7 +567,7 @@ test('`docs/rules.md`와 같은 한도에서는 짧은 글에 `A가 아니라 B`
   assert.deepEqual(names(checkText(text, contrastRules(), 'doc')), ['contrast-density']);
 });
 
-test('`A가 아니라 B`, `~라기보다`, `rather than`을 대조 구문으로 센다', () => {
+test('`A가 아니라 B`, `~라기보다`, `rather than`을 대조 구문 횟수에 넣는다', () => {
   for (const text of [
     '원인은 코드가 아니라 설정입니다.',
     '필요한 것은 재시작이 아니라 롤백입니다.',
@@ -581,7 +581,7 @@ test('`A가 아니라 B`, `~라기보다`, `rather than`을 대조 구문으로 
   }
 });
 
-test('회귀: `뿐만 아니라`처럼 내용을 덧붙이는 표현과 `다름이 아니라`는 대조 구문으로 세지 않는다', () => {
+test('회귀: `뿐만 아니라`처럼 내용을 덧붙이는 표현과 `다름이 아니라`는 대조 구문 횟수에 넣지 않는다', () => {
   /* 실제로 있었던 결함을 재현합니다. */
   for (const text of [
     '로그뿐만 아니라 지표도 확인했습니다.',

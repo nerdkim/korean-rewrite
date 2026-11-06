@@ -19,7 +19,7 @@ export function messageBody(raw) {
 
 function main() {
   const path = process.argv[2];
-  /* 인자로 메시지 파일을 받지 못했으면 git이 실행한 것이 아닙니다. */
+  /* argument로 메시지 파일을 받지 못했으면 git이 실행한 것이 아닙니다. */
   if (path === undefined) process.exit(0);
 
   let raw;
@@ -36,8 +36,8 @@ function main() {
   const violations = blockingViolations(checkText(body, rules, 'commit'));
   if (violations.length === 0) process.exit(0);
 
-  process.stderr.write(`${formatViolations(violations, rules, '커밋 메시지')}\n`);
-  process.stderr.write('메시지를 고쳐 다시 커밋하십시오.\n');
+  process.stderr.write(`${formatViolations(violations, rules, 'commit 메시지')}\n`);
+  process.stderr.write('메시지를 고쳐 다시 commit해 주십시오.\n');
   process.exit(1);
 }
 

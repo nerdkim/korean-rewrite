@@ -75,11 +75,11 @@ export function summarizeReviewer(fixture, runs) {
 
 export function formatReviewerSummary(summary, meta = {}) {
   const lines = [];
-  if (meta.model) lines.push(`검토 모델 ${meta.model}에게 묶음을 ${summary.calls}번 보냈습니다. 답을 읽지 못한 경우는 ${summary.failed}번입니다.`);
+  if (meta.model) lines.push(`검토 model ${meta.model}에게 묶음을 ${summary.calls}번 보냈습니다. 답을 읽지 못한 경우는 ${summary.failed}번입니다.`);
   const caught = summary.english.flagged === 0 ? '한 번도 지적하지 못했습니다' : `그 가운데 ${summary.english.flagged}번을 지적했습니다`;
   const wrong = summary.natural.flagged === 0 ? '한 번도 잘못 지적하지 않았습니다' : `그 가운데 ${summary.natural.flagged}번을 잘못 지적했습니다`;
-  lines.push(`영어식 표현이 든 문장을 ${summary.english.judged}번 보냈고 검토 모델은 ${caught}.`);
-  lines.push(`자연스러운 문장을 ${summary.natural.judged}번 보냈고 검토 모델은 ${wrong}.`);
+  lines.push(`번역투가 든 문장을 ${summary.english.judged}번 보냈고 검토 model은 ${caught}.`);
+  lines.push(`자연스러운 문장을 ${summary.natural.judged}번 보냈고 검토 model은 ${wrong}.`);
   lines.push(`어느 문장을 가리키는지 알 수 없는 지적은 ${summary.unknown}개입니다.`);
   lines.push(`묶음 하나에 든 비용은 평균 ${summary.costPerCall.toFixed(4)}달러이고 묶음 하나에 답하는 데 걸린 시간의 중앙값은 ${summary.apiMedianSeconds.toFixed(1)}초입니다.`);
   lines.push('문장마다 지적한 횟수는 다음과 같습니다.');
@@ -102,7 +102,7 @@ export function main(args) {
     const id = attribute(screen, { where: 'src/JournalView.tsx 12', text: '앞선 항목', fix: '이전 항목' });
     const summary = summarizeReviewer(fixture, [{ batch: 'screen', parsed: true, flagged: [id], unknown: 0, cost: 0, apiMs: 0 }]);
     if (id !== 'source-1' || summary.english.flagged !== 1) throw new Error('지적을 예문에 연결하지 못했습니다');
-    console.log('검토 모델 평가의 자체 검사를 통과했습니다. API는 호출하지 않았습니다.');
+    console.log('검토 model 평가의 자체 검사를 통과했습니다. API는 호출하지 않았습니다.');
     return;
   }
   if (args.includes('--summary')) {

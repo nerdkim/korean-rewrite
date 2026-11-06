@@ -1,4 +1,4 @@
-/* hook 테스트입니다. */
+/* hook test입니다. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { commitMessagesIn, formatReviewNotes, pullRequestTextsIn, resultOfEdit, reviewNotes } from '../scripts/hooks/pretooluse.mjs';
+import { commitMessagesIn, formatReviewNotes, newErrors, pullRequestTextsIn, resultOfEdit, reviewNotes } from '../scripts/hooks/pretooluse.mjs';
 import { lastAssistantText } from '../scripts/hooks/stop.mjs';
 import { messageBody } from '../scripts/hooks/commit-msg.mjs';
 import { mergeHookSettings } from '../scripts/install.mjs';
@@ -29,6 +29,20 @@ function runHook(script, input) {
   const out = (r.stdout ?? '').trim();
   if (out.length === 0) return null;
   return JSON.parse(out);
+}
+
+/* 임시 프로젝트에 파일을 만들고 그 프로젝트에서 hook을 띄웁니다. 편집 전 내용과 비교하려면 실제 파일이 있어야 합니다. `file_path`에는 프로젝트 안의 상대 경로를 넘깁니다. */
+function runHookIn(files, input) {
+  const project = scratch();
+  for (const [name, text] of Object.entries(files)) writeFileSync(join(project, name), text, 'utf-8');
+  const r = spawnSync('node', [join(ROOT, 'scripts', 'hooks', 'pretooluse.mjs')], {
+    input: JSON.stringify({ ...input, tool_input: { ...input.tool_input, file_path: join(project, input.tool_input.file_path) } }),
+    encoding: 'utf-8',
+    env: { ...process.env, CLAUDE_PROJECT_DIR: project, KOREAN_STYLE_RULES: join(ROOT, 'docs', 'rules.md') },
+  });
+  assert.equal(r.status, 0, `hook은 언제나 종료 코드 0으로 끝나야 합니다. 이번에는 ${r.status}입니다.`);
+  const out = r.stdout.trim();
+  return out.length === 0 ? null : JSON.parse(out);
 }
 
 test('회귀: symlink로 건 commit-msg hook도 규칙을 어긴 메시지를 막는다', () => {
@@ -85,14 +99,14 @@ test('회귀: 이번 요청의 답변을 모두 모은다', () => {
   assert.ok(got.indexOf('첫 답변') < got.indexOf('둘째 답변'), '순서가 유지되어야 합니다');
 });
 
-test('깨진 줄 하나 때문에 대화 기록 전체를 버리지 않는다', () => {
+test('깨진 줄 하나 때문에 transcript 전체를 버리지 않는다', () => {
   const path = join(scratch(), 'transcript.jsonl');
   const good = JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: '확인했습니다.' }] } });
   writeFileSync(path, `{깨진 줄\n${good}\n`, 'utf-8');
   assert.equal(lastAssistantText(path), '확인했습니다.');
 });
 
-test('대화 기록 파일이 없으면 null을 돌려준다', () => {
+test('transcript 파일이 없으면 null을 돌려준다', () => {
   assert.equal(lastAssistantText(join(scratch(), '없음.jsonl')), null);
 });
 
@@ -103,55 +117,161 @@ test('규칙을 어긴 문서 쓰기를 거부한다', () => {
   });
   assert.ok(out !== null, '거부해야 합니다');
   assert.equal(out.hookSpecificOutput.permissionDecision, 'deny');
-  assert.ok(out.hookSpecificOutput.permissionDecisionReason.includes('워크플로'), '무엇으로 고칠지 말해야 합니다');
+  assert.ok(out.hookSpecificOutput.permissionDecisionReason.includes('workflow'), '무엇으로 고칠지 말해야 합니다');
 });
 
 test('규칙을 지킨 문서 쓰기는 통과시킨다', () => {
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Write',
-    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: '워크플로를 확인했습니다.' },
+    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: 'workflow를 확인했습니다.' },
   });
   assert.equal(out, null, '통과할 때는 아무것도 출력하지 않습니다');
 });
 
-/* 오류가 없으면 파일 쓰기를 막지 않습니다. 새로 쓴 부분이 review-rules에 든 규칙에 걸리면 Claude에게만 알립니다. */
-
-test('새로 쓴 문서에 영어식 표현으로 보이는 곳이 있으면 쓰기를 막지 않고 Claude에게 알린다', () => {
+test('문서에 IT 용어의 한글 음차를 쓰면 막고 일반 독자용 파일에서 규칙을 끄는 방법을 알린다', () => {
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Write',
-    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: '로그를 통해 원인을 찾았습니다.' },
+    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: '테스트를 마친 뒤 서버에 올립니다.' },
+  });
+  assert.equal(out.hookSpecificOutput.permissionDecision, 'deny');
+  const reason = out.hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /\[transliteration\] 1줄: .*"테스트" → "test"/);
+  assert.equal(reason.split('general-reader -->').length - 1, 1, '규칙을 끄는 방법은 한 번만 알립니다');
+});
+
+test('일반 독자용 표시 줄이 있는 문서에는 IT 용어의 한글 음차를 막지 않는다', () => {
+  const out = runHook('pretooluse.mjs', {
+    tool_name: 'Write',
+    tool_input: {
+      file_path: join(ROOT, 'docs', '시험.md'),
+      content: '<!-- korean-style: general-reader -->\n# 점검 안내\n\n서버 점검 동안 로그인할 수 없습니다.\n',
+    },
+  });
+  assert.equal(out, null);
+});
+
+/* 기존 파일을 고치거나 덮어쓸 때는 이번 편집으로 새로 생긴 오류만 막습니다. 새 기본 규칙을 도입한 프로젝트에서도 예전 표기가 남은 문서를 고칠 수 있어야 하기 때문입니다. */
+
+/* 셋째 줄에 IT 용어의 한글 음차가 남아 있는 문서입니다. */
+const LEGACY_DOC = '# 안내\n\n캐시를 비운 뒤 다시 시도합니다.\n\n둘째 문단입니다.\n';
+const editLegacy = (oldString, newString) =>
+  runHookIn({ 'a.md': LEGACY_DOC }, { tool_name: 'Edit', tool_input: { file_path: 'a.md', old_string: oldString, new_string: newString } });
+
+test('예전 오류가 남은 파일에서 오류가 없는 문단을 고치는 Edit은 막지 않는다', () => {
+  assert.equal(editLegacy('둘째 문단입니다.', '둘째 문단을 고쳤습니다.'), null);
+});
+
+test('예전 오류 문장을 그대로 둔 채 같은 줄이나 같은 문단을 고치는 Edit은 막지 않는다', () => {
+  assert.equal(editLegacy('캐시를 비운 뒤 다시 시도합니다.', '캐시를 비운 뒤 다시 시도합니다. 실패하면 알림을 보냅니다.'), null);
+  assert.equal(editLegacy('캐시를 비운 뒤 다시 시도합니다.', '캐시를 비운 뒤 다시 시도합니다.\n실패하면 알림을 보냅니다.'), null);
+  /* 한 줄에 남은 예전 오류 두 개 가운데 하나만 고칩니다. 규칙을 끄는 방법을 알리는 안내는 처음 나온 음차의 오류에만 붙으므로 첫 음차를 고치면 남은 음차의 오류로 옮겨 갑니다. hook은 안내가 옮겨 간 오류도 편집 전부터 있던 오류로 봅니다. */
+  const fixedOne = runHookIn({ 'a.md': '캐시를 비우고 서버를 다시 시작합니다.\n' }, {
+    tool_name: 'Edit',
+    tool_input: { file_path: 'a.md', old_string: '캐시를', new_string: 'cache를' },
+  });
+  assert.equal(fixedOne, null);
+});
+
+test('예전 오류가 남은 파일이어도 이번 편집으로 생긴 오류는 막고 그 오류만 알린다', () => {
+  const out = editLegacy('둘째 문단입니다.', '서버를 다시 시작합니다.');
+  assert.equal(out?.hookSpecificOutput?.permissionDecision, 'deny');
+  const reason = out.hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /\[transliteration\] 5줄: .*"서버" → "server"/);
+  assert.doesNotMatch(reason, /캐시/, '편집 전부터 있던 오류는 알리지 않습니다');
+});
+
+test('바뀌지 않은 줄에 같은 오류가 있어도 이번에 쓴 줄의 같은 오류는 막는다', () => {
+  for (const [oldString, newString, line] of [
+    ['둘째 문단입니다.', '캐시가 비면 다시 채웁니다.', 5],
+    ['캐시를 비운 뒤 다시 시도합니다.', '캐시를 비운 뒤 다시 시도합니다.\n캐시가 비면 다시 채웁니다.', 4],
+  ]) {
+    const out = editLegacy(oldString, newString);
+    assert.equal(out?.hookSpecificOutput?.permissionDecision, 'deny', newString);
+    assert.match(out.hookSpecificOutput.permissionDecisionReason, new RegExp(`\\[transliteration\\] ${line}줄: .*"캐시" → "cache"`), newString);
+  }
+});
+
+test('MultiEdit에서도 예전 오류는 막지 않고 이번 편집으로 생긴 오류만 막는다', () => {
+  const multiEdit = (edits) => runHookIn({ 'a.md': LEGACY_DOC }, { tool_name: 'MultiEdit', tool_input: { file_path: 'a.md', edits } });
+  const edits = [
+    { old_string: '# 안내', new_string: '# 다시 시도 안내' },
+    { old_string: '둘째 문단입니다.', new_string: '둘째 문단을 고쳤습니다.' },
+  ];
+  assert.equal(multiEdit(edits), null);
+  const out = multiEdit([...edits, { old_string: '둘째 문단을 고쳤습니다.', new_string: '둘째 문단을 고쳤습니다. 결과가 보여집니다.' }]);
+  assert.equal(out?.hookSpecificOutput?.permissionDecision, 'deny');
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /\[double-passive\] 5줄/);
+});
+
+test('Write로 새 파일을 만들면 파일 전체를 검사하고 기존 파일을 덮어쓰면 이번에 생긴 오류만 막는다', () => {
+  const created = runHookIn({}, { tool_name: 'Write', tool_input: { file_path: 'a.md', content: LEGACY_DOC } });
+  assert.equal(created?.hookSpecificOutput?.permissionDecision, 'deny');
+  assert.match(created.hookSpecificOutput.permissionDecisionReason, /\[transliteration\] 3줄: .*"캐시" → "cache"/);
+  const overwrite = (content) => runHookIn({ 'a.md': LEGACY_DOC }, { tool_name: 'Write', tool_input: { file_path: 'a.md', content } });
+  assert.equal(overwrite(LEGACY_DOC.replace('둘째 문단입니다.', '둘째 문단을 고쳤습니다.')), null);
+  assert.equal(overwrite(`${LEGACY_DOC}\n서버를 다시 시작합니다.\n`)?.hookSpecificOutput?.permissionDecision, 'deny');
+});
+
+test('회귀: MultiEdit으로 없는 파일을 만들 때도 편집마다 쓴 새 문자열을 검사한다', () => {
+  /* 실제로 있었던 결함을 재현합니다. 파일을 읽지 못하면 MultiEdit의 새 문자열을 보지 않고 빈 글을 검사했습니다. */
+  const created = [{ old_string: '', new_string: '# 안내\n\n둘째 문단입니다.\n' }];
+  const edits = [...created, { old_string: '둘째 문단입니다.', new_string: '캐시를 비운 뒤 다시 시도합니다.' }];
+  const after = resultOfEdit('MultiEdit', { edits }, join(scratch(), '없음.md'));
+  assert.ok(after.includes('# 안내') && after.includes('캐시를 비운 뒤'), `편집마다 쓴 새 문자열이 모두 들어 있어야 하는데 ${JSON.stringify(after)}입니다`);
+  const out = runHookIn({}, { tool_name: 'MultiEdit', tool_input: { file_path: 'a.md', edits } });
+  assert.equal(out?.hookSpecificOutput?.permissionDecision, 'deny');
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /\[transliteration\] \d+줄: .*"캐시" → "cache"/);
+  /* 오류가 없는 글로 새 파일을 만들면 막지 않습니다. */
+  assert.equal(runHookIn({}, { tool_name: 'MultiEdit', tool_input: { file_path: 'a.md', edits: created } }), null);
+});
+
+test('편집 전 파일에서 한 건도 나오지 않던 규칙의 오류는 바뀐 줄의 산문에서 찾지 못해도 이번 편집으로 생긴 오류로 본다', () => {
+  /* 일반 독자용 표시 줄을 지우면 문서 전체의 음차가 오류가 됩니다. */
+  const notice = '<!-- korean-style: general-reader -->\n# 점검 안내\n\n서버 점검 동안 로그인할 수 없습니다.\n';
+  assert.deepEqual(newErrors(notice, notice.replace('점검 동안', '점검 시간에'), RULES, 'doc', 'docs/a.md'), []);
+  assert.deepEqual(newErrors(notice, notice.replace('<!-- korean-style: general-reader -->\n', ''), RULES, 'doc', 'docs/a.md').map((v) => v.rule), ['transliteration', 'transliteration']);
+  /* 코드 블록 안의 글은 산문만 남길 때 가리지만 가운뎃점 같은 금지 문자는 검사합니다. */
+  const sample = '# 예시\n\n```text\n출력입니다.\n```\n';
+  const found = newErrors(sample, sample.replace('출력입니다.', 'API·DB 출력입니다.'), RULES, 'doc', 'docs/a.md');
+  assert.deepEqual(found.map((v) => [v.rule, v.line]), [['banned-char', 4]]);
+});
+
+/* 이번 편집으로 새로 생긴 오류가 없으면 파일 쓰기를 막지 않습니다. 새로 쓴 부분이 review-rules에 든 규칙에 걸리면 Claude에게만 알립니다. */
+
+test('새로 쓴 문서에 번역투로 보이는 곳이 있으면 쓰기를 막지 않고 Claude에게 알린다', () => {
+  const out = runHook('pretooluse.mjs', {
+    tool_name: 'Write',
+    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: '값을 변경하는 것이 가능합니다.' },
   });
   assert.ok(out !== null, 'Claude에게 알려야 합니다');
   assert.equal(out.hookSpecificOutput.permissionDecision, undefined, '`allow`를 돌려주면 Claude Code가 사용자 승인 절차를 건너뜁니다');
-  assert.match(out.hookSpecificOutput.additionalContext, /\[translationese\] 1줄: .*를 통해/);
+  assert.match(out.hookSpecificOutput.additionalContext, /\[translationese\] 1줄: .*것이 가능합/);
+});
+
+test('이유 문장 바로 뒤 문장을 `그래서`로 시작하면 쓰기를 막지 않고 Claude에게 알린다', () => {
+  const content = 'Haiku 4.5 ID로 보낸 요청도 Sonnet 5로 호출합니다. 서울에는 Haiku model이 없기 때문입니다. 그래서 서비스는 model ID를 바꾸지 않아도 됩니다.';
+  const out = runHook('pretooluse.mjs', { tool_name: 'Write', tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content } });
+  assert.equal(out.hookSpecificOutput.permissionDecision, undefined);
+  assert.match(out.hookSpecificOutput.additionalContext, /\[adverb-after-reason\] 1줄: .*"따라서"/);
 });
 
 test('항목을 새로 넣는 일을 문서에 `더하다`로 쓰면 쓰기를 막지 않고 Claude에게 알린다', () => {
   /* CLAUDE.md에 `버그를 고치면 회귀 테스트를 더합니다.`를 적어 둔 프로젝트에서 Claude는 같은 내용의 규칙을 쓸 때 `회귀 테스트를 더합니다`를 따라 썼습니다. hook은 Claude가 파일을 쓸 때 이런 표현이 있으면 Claude에게 알려 다시 살펴보게 합니다. */
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Write',
-    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: '버그를 고치면 회귀 테스트를 더합니다.' },
+    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: '버그를 고치면 회귀 test를 더합니다.' },
   });
   assert.ok(out !== null, 'Claude에게 알려야 합니다');
   assert.equal(out.hookSpecificOutput.permissionDecision, undefined);
-  assert.match(out.hookSpecificOutput.additionalContext, /\[literal-verb\] 1줄: .*테스트/);
+  assert.match(out.hookSpecificOutput.additionalContext, /\[literal-verb\] 1줄: .*test/);
 });
 
 test('바뀌기 전 파일에 있던 경고는 Edit로 그 줄을 고쳐도 다시 알리지 않는다', () => {
-  /* 실제 파일이 있어야 바뀌기 전 내용과 비교할 수 있으므로 임시 프로젝트에서 hook을 띄웁니다. */
-  const project = scratch();
-  const file = join(project, 'a.md');
-  writeFileSync(file, '# 제목\n\n로그를 통해 원인을 찾았습니다.\n', 'utf-8');
-  const r = spawnSync('node', [join(ROOT, 'scripts', 'hooks', 'pretooluse.mjs')], {
-    input: JSON.stringify({
-      tool_name: 'Edit',
-      tool_input: { file_path: file, old_string: '원인을 찾았습니다.', new_string: '원인을 다시 찾았습니다.' },
-    }),
-    encoding: 'utf-8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: project, KOREAN_STYLE_RULES: join(ROOT, 'docs', 'rules.md') },
+  const out = runHookIn({ 'a.md': '# 제목\n\nlog 분석 진행을 통해 원인을 찾았습니다.\n' }, {
+    tool_name: 'Edit',
+    tool_input: { file_path: 'a.md', old_string: '원인을 찾았습니다.', new_string: '원인을 다시 찾았습니다.' },
   });
-  assert.equal(r.status, 0);
-  assert.equal(r.stdout.trim(), '', '이번 편집으로 생긴 표현이 아닙니다');
+  assert.equal(out, null, '이번 편집으로 생긴 표현이 아닙니다');
 });
 
 test('review-rules에 없는 규칙의 경고는 알리지 않는다', () => {
@@ -160,7 +280,7 @@ test('review-rules에 없는 규칙의 경고는 알리지 않는다', () => {
     tool_name: 'Write',
     tool_input: {
       file_path: join(ROOT, 'docs', '시험.md'),
-      content: '오늘 배포를 마쳤고, 남은 것은 보고 하나이며, 확인이 필요하고, 일정은 내일입니다.',
+      content: '오늘 deploy를 마쳤고, 남은 것은 보고 하나이며, 확인이 필요하고, 일정은 내일입니다.',
     },
   });
   assert.equal(out, null);
@@ -169,19 +289,28 @@ test('review-rules에 없는 규칙의 경고는 알리지 않는다', () => {
 test('오류가 있으면 경고는 알리지 않고 쓰기를 거부한다', () => {
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Write',
-    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: '로그를 통해 원인을 찾았어요.' },
+    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: 'log 분석 진행을 통해 원인을 찾았어요.' },
   });
   assert.equal(out.hookSpecificOutput.permissionDecision, 'deny');
   assert.equal(out.hookSpecificOutput.additionalContext, undefined);
 });
 
-test('커밋 메시지와 사용자에게 보내는 질문에서 나온 경고는 Claude에게 알리지 않는다', () => {
-  /* 알림은 도구가 실행된 뒤에 도착하므로 이미 끝난 커밋이나 보낸 질문은 고칠 수 없습니다. */
-  assert.equal(runHook('pretooluse.mjs', { tool_name: 'Bash', tool_input: { command: 'git commit -m "로그를 통해 원인을 찾았습니다"' } }), null);
+test('commit 메시지와 사용자에게 보내는 질문에서 나온 경고는 Claude에게 알리지 않는다', () => {
+  /* 알림은 도구가 실행된 뒤에 도착하므로 이미 끝난 commit이나 보낸 질문은 고칠 수 없습니다. */
+  assert.equal(runHook('pretooluse.mjs', { tool_name: 'Bash', tool_input: { command: 'git commit -m "log 분석 진행을 통해 원인을 찾았습니다"' } }), null);
   assert.equal(runHook('pretooluse.mjs', {
     tool_name: 'AskUserQuestion',
-    tool_input: { questions: [{ question: '로그를 통해 확인할까요?', header: '확인' }] },
+    tool_input: { questions: [{ question: 'log 분석 진행을 통해 확인할까요?', header: '확인' }] },
   }), null);
+});
+
+test('사용자에게 보내는 질문과 agent에게 주는 prompt에 쓴 한글 음차는 막지 않는다', () => {
+  /* 질문과 prompt에는 사용자가 준 글이나 이용자 공지에 담을 사실이 들어 있을 때가 많아서 답변처럼 경고로만 봅니다. */
+  assert.equal(runHook('pretooluse.mjs', {
+    tool_name: 'AskUserQuestion',
+    tool_input: { questions: [{ question: '서버를 다시 띄울까요?', header: '확인' }] },
+  }), null);
+  assert.equal(runHook('pretooluse.mjs', { tool_name: 'Agent', tool_input: { prompt: '이용자 공지 초안을 써 주십시오. 서버 점검 동안 로그인할 수 없다는 내용입니다.' } }), null);
 });
 
 /* 편집 전 파일을 만들고 편집을 적용해 전후 내용을 돌려줍니다. */
@@ -195,54 +324,61 @@ const rulesOf = (before, after, target = 'doc', path = 'docs/a.md') =>
   reviewNotes(before, after, RULES, target, path).map(v => v.rule);
 
 test('MultiEdit로 문단을 옮겨도 원래 있던 경고는 다시 알리지 않는다', () => {
-  const moved = edited('a.md', '로그를 통해 봤습니다.\n\n둘째 문단입니다.\n', 'MultiEdit', { edits: [
-    { old_string: '로그를 통해 봤습니다.\n\n', new_string: '' },
-    { old_string: '둘째 문단입니다.\n', new_string: '둘째 문단입니다.\n\n로그를 통해 봤습니다.\n' },
+  const moved = edited('a.md', 'log를 보는 것이 가능합니다.\n\n둘째 문단입니다.\n', 'MultiEdit', { edits: [
+    { old_string: 'log를 보는 것이 가능합니다.\n\n', new_string: '' },
+    { old_string: '둘째 문단입니다.\n', new_string: '둘째 문단입니다.\n\nlog를 보는 것이 가능합니다.\n' },
   ] });
   assert.deepEqual(rulesOf(moved.before, moved.after), []);
-  const added = edited('a.md', '로그를 통해 봤습니다.\n', 'MultiEdit', { edits: [
-    { old_string: '로그를 통해 봤습니다.\n', new_string: '로그를 통해 봤습니다.\n\n여러 파일들을 확인했습니다.\n' },
+  const added = edited('a.md', 'log를 보는 것이 가능합니다.\n', 'MultiEdit', { edits: [
+    { old_string: 'log를 보는 것이 가능합니다.\n', new_string: 'log를 보는 것이 가능합니다.\n\n여러 파일들을 확인했습니다.\n' },
   ] });
   assert.deepEqual(rulesOf(added.before, added.after), ['redundant-plural']);
 });
 
 test('Write로 기존 파일을 덮어쓰면 원래 있던 경고는 다시 알리지 않는다', () => {
-  const before = '로그를 통해 원인을 찾았습니다.\n';
+  const before = 'log 분석 진행을 통해 원인을 찾았습니다.\n';
   const notes = reviewNotes(before, `${before}\n여러 파일들을 봤습니다.\n`, RULES, 'doc', 'a.md');
-  assert.deepEqual(notes.map(v => [v.rule, v.line]), [['redundant-plural', 3]], '줄 번호는 파일 전체에서 센 번호여야 합니다');
+  assert.deepEqual(notes.map(v => [v.rule, v.line]), [['redundant-plural', 3]], '줄 번호는 파일 첫 줄부터 매긴 번호여야 합니다');
 });
 
 test('같은 문단에서 바꾸지 않은 줄의 경고는 다시 알리지 않는다', () => {
-  assert.deepEqual(rulesOf('로그를 통해 원인을 찾았습니다.\n결과를 적었습니다.\n', '로그를 통해 원인을 찾았습니다.\n결과를 다시 적었습니다.\n'), []);
+  assert.deepEqual(rulesOf('log 분석 진행을 통해 원인을 찾았습니다.\n결과를 적었습니다.\n', 'log 분석 진행을 통해 원인을 찾았습니다.\n결과를 다시 적었습니다.\n'), []);
+});
+
+test('경고가 있는 문단에 줄만 끼워 넣어도 원래 있던 경고는 다시 알리지 않는다', () => {
+  const { before, after } = edited('a.md', 'log를 보는 것이 가능합니다.\n결과를 적었습니다.\n', 'Edit', {
+    old_string: '결과를 적었습니다.', new_string: '새 줄을 넣었습니다.\n결과를 적었습니다.',
+  });
+  assert.deepEqual(rulesOf(before, after), []);
 });
 
 test('고친 부분에 주석 표시가 없어도 주석 안의 경고를 알린다', () => {
   /* Edit 도구에는 바꿀 부분만 넘기는 경우가 많아 그 안에 `//`가 없습니다. */
   const { before, after } = edited('a.js', '// 사용자를 조회합니다.\nconst a = 1;\n', 'Edit', {
-    old_string: '사용자를 조회합니다.', new_string: '로그를 통해 사용자를 조회합니다.',
+    old_string: '사용자를 조회합니다.', new_string: '사용자를 조회하는 것이 가능합니다.',
   });
   assert.deepEqual(rulesOf(before, after, 'comment', 'src/a.js'), ['translationese']);
 });
 
-test('문자열 리터럴만 바꾼 소스 편집에는 경고를 알리지 않는다', () => {
-  assert.deepEqual(rulesOf("// 주석입니다.\nconst a = '확인';\n", "// 주석입니다.\nconst a = '로그를 통해 확인';\n", 'comment', 'src/a.js'), []);
+test('코드 안의 문자열만 바꾼 소스 편집에는 경고를 알리지 않는다', () => {
+  assert.deepEqual(rulesOf("// 주석입니다.\nconst a = '확인';\n", "// 주석입니다.\nconst a = '확인하는 것이 가능합니다';\n", 'comment', 'src/a.js'), []);
 });
 
 test('기존 코드 블록 안에 쓴 글의 경고는 Claude에게 알리지 않는다', () => {
   const { before, after } = edited('a.md', '# 제목\n\n```\n예시입니다.\n```\n', 'Edit', {
-    old_string: '예시입니다.', new_string: '로그를 통해 예시입니다.',
+    old_string: '예시입니다.', new_string: '예시를 바꾸는 것이 가능합니다.',
   });
   assert.deepEqual(rulesOf(before, after), []);
 });
 
 test('인용 구간 안에 옮겨 적은 글의 경고는 Claude에게 알리지 않는다', () => {
   const quoted = '# 예시\n\n<!-- korean-style-quote -->\n> 예시입니다.\n<!-- /korean-style-quote -->\n';
-  assert.deepEqual(rulesOf(quoted, quoted.replace('예시입니다.', '로그를 통해 예시입니다.')), []);
+  assert.deepEqual(rulesOf(quoted, quoted.replace('예시입니다.', '예시를 바꾸는 것이 가능합니다.')), []);
   /* 인용 구간 밖에서 같은 문장을 쓰면 알립니다. */
-  assert.deepEqual(rulesOf('# 예시\n\n예시입니다.\n', '# 예시\n\n로그를 통해 예시입니다.\n'), ['translationese']);
+  assert.deepEqual(rulesOf('# 예시\n\n예시입니다.\n', '# 예시\n\n예시를 바꾸는 것이 가능합니다.\n'), ['translationese']);
 });
 
-test('규칙 블록의 영어식 표현 목록에 항목을 추가해도 Claude에게 알리지 않는다', () => {
+test('규칙 블록의 번역투 목록에 항목을 추가해도 Claude에게 알리지 않는다', () => {
   /* 규칙 문서를 고치는 것은 설치한 프로젝트에서 규칙을 바꾸는 정상 절차입니다. */
   const before = '# 규칙\n\n```korean-style-rules\ntranslationese-patterns: 를 통해=~해\n```\n';
   assert.deepEqual(rulesOf(before, before.replace('=~해', '=~해, 문서를 통하여서=로'), 'doc', '.korean-style/rules.md'), []);
@@ -250,7 +386,7 @@ test('규칙 블록의 영어식 표현 목록에 항목을 추가해도 Claude�
 
 test('review-rules가 비어 있으면 경고를 알리지 않는다', () => {
   /* 이 키가 없는 예전 규칙으로 설치한 프로젝트입니다. */
-  assert.deepEqual(reviewNotes('', '로그를 통해 원인을 찾았습니다.', { ...RULES, reviewRules: [] }, 'doc', 'a.md'), []);
+  assert.deepEqual(reviewNotes('', 'log 분석 진행을 통해 원인을 찾았습니다.', { ...RULES, reviewRules: [] }, 'doc', 'a.md'), []);
 });
 
 test('경고가 많으면 앞의 다섯 건만 보여 주고 나머지 건수를 알린다', () => {
@@ -298,8 +434,8 @@ test('사람이 읽는 도구 입력이 규칙을 어기면 거부한다', () =>
   assert.ok(out.hookSpecificOutput.permissionDecisionReason.includes('당신'));
 });
 
-test('subagent에게 주는 한국어 프롬프트가 규칙을 어기면 거부한다', () => {
-  /* 작성 지침은 subagent에 적용되지 않습니다. */
+test('subagent에게 주는 한국어 prompt가 규칙을 어기면 거부한다', () => {
+  /* output style은 subagent에 적용되지 않습니다. */
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Task',
     tool_input: { prompt: '결과가 보여집니다. 보고해 주십시오.', subagent_type: 'code-explorer' },
@@ -308,8 +444,8 @@ test('subagent에게 주는 한국어 프롬프트가 규칙을 어기면 거부
   assert.ok(out.hookSpecificOutput.permissionDecisionReason.includes('double-passive'));
 });
 
-test('영어로 쓴 subagent 프롬프트는 거부하지 않는다', () => {
-  /* 규칙을 어긴 한국어 프롬프트를 막는 것보다 영어 프롬프트를 통과시키는 것이 더 중요합니다. */
+test('영어로 쓴 subagent prompt는 거부하지 않는다', () => {
+  /* 규칙을 어긴 한국어 prompt를 막는 것보다 영어 prompt를 통과시키는 것이 더 중요합니다. */
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Task',
     tool_input: { prompt: 'Read scripts/lib/text.mjs and report the sentence splitting contract in detail.' },
@@ -317,7 +453,7 @@ test('영어로 쓴 subagent 프롬프트는 거부하지 않는다', () => {
   assert.equal(out, null);
 });
 
-test('규칙을 지킨 한국어 subagent 프롬프트는 통과시킨다', () => {
+test('규칙을 지킨 한국어 subagent prompt는 통과시킨다', () => {
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Task',
     tool_input: { prompt: '이 파일을 읽고 문장 분해 계약을 정확히 보고하십시오. 추측하지 마십시오.' },
@@ -325,13 +461,13 @@ test('규칙을 지킨 한국어 subagent 프롬프트는 통과시킨다', () =
   assert.equal(out, null);
 });
 
-test('규칙을 어긴 커밋 메시지를 거부한다', () => {
+test('규칙을 어긴 commit 메시지를 거부한다', () => {
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Bash',
     tool_input: { command: 'git commit -m "워크플로우를 정리했습니다"' },
   });
   assert.ok(out !== null, '거부해야 합니다');
-  assert.ok(out.hookSpecificOutput.permissionDecisionReason.includes('워크플로'));
+  assert.ok(out.hookSpecificOutput.permissionDecisionReason.includes('workflow'));
 });
 
 test('git commit이 아닌 Bash 명령은 보지 않는다', () => {
@@ -339,27 +475,33 @@ test('git commit이 아닌 Bash 명령은 보지 않는다', () => {
   assert.equal(out, null);
 });
 
-/* Claude Code가 커밋할 때 쓰는 형태입니다. */
+/* Claude Code가 commit할 때 쓰는 형태입니다. */
 const HEREDOC_COMMIT = (body) => `git commit -m "$(cat <<'EOF'\n${body}\nEOF\n)"`;
 
-test('커밋 메시지에 Claude Code 생성 표시가 있으면 거부한다', () => {
+test('commit 메시지에 Claude Code 생성 표시가 있으면 거부한다', () => {
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Bash',
-    tool_input: { command: HEREDOC_COMMIT('feat: 로그인 API에 rate limit 추가\n\n한도를 넘으면 429를 반환합니다.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>') },
+    tool_input: { command: HEREDOC_COMMIT('feat: login API에 rate limit 추가\n\n한도를 넘으면 429를 반환합니다.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>') },
   });
   assert.equal(out?.hookSpecificOutput?.permissionDecision, 'deny');
   assert.match(out.hookSpecificOutput.permissionDecisionReason, /ai-attribution/);
 });
 
-test('사용자가 정한 공동 작성자 줄은 커밋 메시지에 남겨도 된다', () => {
+test('사용자가 정한 공동 작성자 줄은 commit 메시지에 남겨도 된다', () => {
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Bash',
-    tool_input: { command: HEREDOC_COMMIT('feat: 로그인 API에 rate limit 추가\n\n한도를 넘으면 429를 반환합니다.\n\nCo-Authored-By: mikdren <bot-sidekick@nerd.kim>') },
+    tool_input: { command: HEREDOC_COMMIT('feat: login API에 rate limit 추가\n\n한도를 넘으면 429를 반환합니다.\n\nCo-Authored-By: mikdren <bot-sidekick@nerd.kim>') },
   });
   assert.equal(out, null);
 });
 
-test('gh 명령에서 PR과 이슈의 제목, 설명, 코멘트를 모두 뽑는다', () => {
+test('commit 메시지에 IT 용어의 한글 음차를 쓰면 거부한다', () => {
+  const out = runHook('pretooluse.mjs', { tool_name: 'Bash', tool_input: { command: HEREDOC_COMMIT('fix: 캐시 무효화 순서 수정') } });
+  assert.equal(out?.hookSpecificOutput?.permissionDecision, 'deny');
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /\[transliteration\] .*"캐시" → "cache"/);
+});
+
+test('gh 명령에서 PR과 issue의 제목, 설명, comment를 모두 뽑는다', () => {
   assert.deepEqual(pullRequestTextsIn('gh pr create --title "제목입니다" --body "본문입니다"'), ['제목입니다', '본문입니다']);
   assert.deepEqual(pullRequestTextsIn("gh pr create -t '제목입니다' -b '본문입니다'"), ['제목입니다', '본문입니다']);
   assert.deepEqual(pullRequestTextsIn('gh pr edit 12 --body="고친 본문입니다"'), ['고친 본문입니다']);
@@ -371,21 +513,21 @@ test('gh 명령에서 PR과 이슈의 제목, 설명, 코멘트를 모두 뽑는
   assert.ok(heredoc[1].includes('- 재시도를 추가했습니다.'));
 });
 
-test('PR과 이슈에 글을 쓰지 않는 명령에서는 아무것도 뽑지 않는다', () => {
+test('PR과 issue에 글을 쓰지 않는 명령에서는 아무것도 뽑지 않는다', () => {
   for (const command of ['gh pr view 12', 'gh pr list --search "본문입니다"', 'echo --body "본문입니다"', 'gh pr checkout 12', undefined]) {
     assert.deepEqual(pullRequestTextsIn(command), [], String(command));
   }
 });
 
-test('`create` 대신 `new`로 쓴 gh 명령에서도 글을 뽑고 병합 커밋 메시지와 표준 입력으로 넘긴 PR 설명도 뽑는다', () => {
+test('`create` 대신 `new`로 쓴 gh 명령에서도 글을 뽑고 merge commit 메시지와 표준 입력으로 넘긴 PR 설명도 뽑는다', () => {
   assert.deepEqual(pullRequestTextsIn('gh pr new --title "제목입니다" --body "본문입니다"'), ['제목입니다', '본문입니다']);
   assert.deepEqual(pullRequestTextsIn('gh issue new -t "제목입니다" -b "본문입니다"'), ['제목입니다', '본문입니다']);
-  assert.deepEqual(pullRequestTextsIn('gh pr merge 12 --squash --subject "병합 제목입니다" --body "병합 본문입니다"'), ['병합 제목입니다', '병합 본문입니다']);
+  assert.deepEqual(pullRequestTextsIn('gh pr merge 12 --squash --subject "merge 커밋 제목입니다" --body "merge 커밋 본문입니다"'), ['merge 커밋 제목입니다', 'merge 커밋 본문입니다']);
   assert.deepEqual(pullRequestTextsIn('gh pr comment 12 -b의견을남겼습니다'), ['의견을남겼습니다']);
   assert.deepEqual(pullRequestTextsIn("gh pr create --title \"제목입니다\" --body-file - <<'EOF'\n본문입니다.\nEOF"), ['제목입니다', '본문입니다.']);
 });
 
-test('커밋 메시지를 옵션에 붙여 쓰거나 ANSI-C 따옴표나 줄을 이은 큰따옴표로 감싸도 뽑고 trailer와 표준 입력으로 넘긴 메시지도 뽑는다', () => {
+test('commit 메시지를 option에 붙여 쓰거나 ANSI-C 따옴표나 줄을 이은 큰따옴표로 감싸도 뽑고 trailer와 표준 입력으로 넘긴 메시지도 뽑는다', () => {
   assert.deepEqual(commitMessagesIn('git commit -m로그를통해원인을찾았습니다'), ['로그를통해원인을찾았습니다']);
   assert.deepEqual(commitMessagesIn('git commit -am메시지입니다'), ['메시지입니다']);
   assert.deepEqual(commitMessagesIn("git commit -m $'첫 줄입니다.\\n\\n둘째 줄입니다.'"), ['첫 줄입니다.\n\n둘째 줄입니다.']);
@@ -395,7 +537,7 @@ test('커밋 메시지를 옵션에 붙여 쓰거나 ANSI-C 따옴표나 줄을 
   assert.deepEqual(commitMessagesIn('git -C sub commit -m "하위 저장소에서 커밋합니다"'), ['하위 저장소에서 커밋합니다']);
 });
 
-test('따옴표 안이나 heredoc 본문에 든 명령과 뒤에 이어진 다른 명령의 옵션에서는 글을 뽑지 않는다', () => {
+test('따옴표 안이나 heredoc 본문에 든 명령과 뒤에 이어진 다른 명령의 option에서는 글을 뽑지 않는다', () => {
   const quiet = [
     `echo 'gh pr create --title "릴리스" --body "배포를 준비했어요"' >> /tmp/notes.txt`,
     `cat > /tmp/pr.sh <<'EOF'\ngh pr create --title "릴리스" --body "배포를 준비했어요"\nEOF`,
@@ -410,7 +552,7 @@ test('따옴표 안이나 heredoc 본문에 든 명령과 뒤에 이어진 다�
 });
 
 test('닫히지 않은 heredoc이 아주 길어도 명령을 빨리 읽는다', () => {
-  /* 정규식이 백트래킹에 빠지면 hook이 멈췄다가 예외로 끝납니다. 그러면 명령은 검사 없이 통과합니다. */
+  /* 정규 표현식이 backtracking에 빠지면 hook이 멈췄다가 예외로 끝납니다. 그러면 명령은 검사 없이 통과합니다. */
   const command = `git commit -m "$(cat <<'EOF'${'\n'.repeat(3400)}EOF${' '.repeat(3400)}x`;
   const started = process.hrtime.bigint();
   commitMessagesIn(command);
@@ -420,7 +562,7 @@ test('닫히지 않은 heredoc이 아주 길어도 명령을 빨리 읽는다', 
 });
 
 test('PR 설명에 규칙 위반이나 생성 표시가 있으면 거부한다', () => {
-  const body = '## 변경 내용\n\n- 결제 클라이언트에 재시도를 추가했습니다.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)';
+  const body = '## 변경 내용\n\n- 결제 client에 재시도를 추가했습니다.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)';
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Bash',
     tool_input: { command: `gh pr create --title "결제 재시도 추가" --body "$(cat <<'EOF'\n${body}\nEOF\n)"` },
@@ -433,12 +575,12 @@ test('PR 설명에 규칙 위반이나 생성 표시가 있으면 거부한다',
 test('규칙을 지킨 PR 설명은 통과시킨다', () => {
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Bash',
-    tool_input: { command: 'gh pr create --title "결제 재시도 추가" --body "결제 클라이언트에 재시도를 추가했습니다."' },
+    tool_input: { command: 'gh pr create --title "결제 재시도 추가" --body "결제 client에 재시도를 추가했습니다."' },
   });
   assert.equal(out, null);
 });
 
-/* shell 명령으로 파일을 쓰는 경우를 확인하는 테스트입니다. 전에는 PreToolUse hook이 `Write`와 `Edit` 계열 도구로 쓰는 것만 파일 쓰기로 봤습니다. */
+/* shell 명령으로 파일을 쓰는 경우를 확인하는 test입니다. 전에는 PreToolUse hook이 `Write`와 `Edit` 계열 도구로 쓰는 것만 파일 쓰기로 봤습니다. */
 
 /* Bash 명령 하나를 hook에 넣고 거부되었는지 돌려줍니다. */
 function bashDenied(command) {
@@ -483,7 +625,7 @@ test('읽기만 하는 명령은 통과시킨다', () => {
 });
 
 test('회귀: shell이 확장할 부분이 남은 경로는 건너뛴다', () => {
-  /* 임시 디렉터리를 가리키는 변수가 든 경로를 hook이 프로젝트 안의 소스 파일로 본 적이 있습니다. */
+  /* 임시 directory를 가리키는 변수가 든 경로를 hook이 프로젝트 안의 소스 파일로 본 적이 있습니다. */
   assert.ok(!bashDenied('cat > $SCRATCH/probe.mjs <<EOF\n내용\nEOF'));
   assert.ok(!bashDenied('echo x > ~/notes.md'));
 });
@@ -531,19 +673,24 @@ function transcriptWith(text) {
   return path;
 }
 
-test('대화 기록 파일이 없어도 hook 입력으로 받은 마지막 답변을 검사한다', () => {
+test('transcript 파일이 없어도 hook 입력으로 받은 마지막 답변을 검사한다', () => {
   const out = runHook('stop.mjs', { last_assistant_message: '작업이 완료됬습니다.', stop_hook_active: false });
   assert.equal(out.decision, 'block');
   assert.match(out.reason, /known-typo/);
 });
 
-test('hook 입력에 마지막 답변이 있으면 대화 기록 파일의 답변 대신 그 답변을 검사한다', () => {
+test('hook 입력에 마지막 답변이 있으면 transcript 파일의 답변 대신 그 답변을 검사한다', () => {
   assert.equal(runHook('stop.mjs', { transcript_path: transcriptWith('결과가 보여집니다.'),
     last_assistant_message: '결과가 보입니다.', stop_hook_active: false }), null);
 });
 
 test('경고만 있는 답변이면 다시 쓰라고 요구하지 않는다', () => {
-  assert.equal(runHook('stop.mjs', { last_assistant_message: 'API를 통해 확인했습니다.' }), null);
+  assert.equal(runHook('stop.mjs', { last_assistant_message: 'API로 확인하는 것이 가능했습니다.' }), null);
+});
+
+test('답변에 쓴 IT 용어의 한글 음차는 경고로만 보고 다시 쓰라고 요구하지 않는다', () => {
+  /* 답변에는 이용자 공지 초안이나 사용자가 준 글을 다듬은 결과가 들어 있을 때가 많습니다. 검사기는 이런 글을 가려내지 못하므로 답변에 쓴 음차는 경고로만 보고합니다. */
+  assert.equal(runHook('stop.mjs', { last_assistant_message: '서버 점검 동안 로그인할 수 없다는 공지 초안입니다.' }), null);
 });
 
 test('hook 입력으로 마지막 답변을 받아도 다시 쓰라고 한 번만 요구한다', () => {
@@ -577,7 +724,7 @@ test('규칙을 어긴 답변이면 다시 쓰라고 요구한다', () => {
 });
 
 test('규칙을 지킨 답변이면 다시 쓰라고 요구하지 않는다', () => {
-  const path = transcriptWith('요청한 대로 워크플로를 정리했습니다.');
+  const path = transcriptWith('요청한 대로 workflow를 정리했습니다.');
   assert.equal(runHook('stop.mjs', { transcript_path: path, stop_hook_active: false }), null);
 });
 
@@ -587,7 +734,7 @@ test('Stop hook이 이미 한 번 다시 쓰게 한 답변에는 또 요구하�
   assert.equal(runHook('stop.mjs', { transcript_path: path, stop_hook_active: true }), null);
 });
 
-test('hook 입력에 대화 기록 경로도 마지막 답변도 없으면 아무 일도 하지 않는다', () => {
+test('hook 입력에 transcript 경로도 마지막 답변도 없으면 아무 일도 하지 않는다', () => {
   assert.equal(runHook('stop.mjs', { stop_hook_active: false }), null);
 });
 
@@ -602,14 +749,14 @@ function runCommitMsg(body) {
   });
 }
 
-test('commit-msg hook은 규칙을 어긴 메시지면 커밋을 멈춘다', () => {
+test('commit-msg hook은 규칙을 어긴 메시지면 commit을 멈춘다', () => {
   const r = runCommitMsg('fix: 워크플로우를 정리했어요\n\n# 안내\n');
-  assert.equal(r.status, 1, '커밋을 멈춰야 합니다');
-  assert.ok(r.stderr.includes('워크플로'), '무엇으로 고칠지 말해야 합니다');
+  assert.equal(r.status, 1, 'commit을 멈춰야 합니다');
+  assert.ok(r.stderr.includes('workflow'), '무엇으로 고칠지 말해야 합니다');
 });
 
 test('commit-msg hook은 규칙을 지킨 메시지를 통과시킨다', () => {
-  assert.equal(runCommitMsg('fix: 워크플로를 정리했습니다\n').status, 0);
+  assert.equal(runCommitMsg('fix: workflow를 정리했습니다\n').status, 0);
 });
 
 test('메시지 파일 없이 호출되면 통과시킨다', () => {
@@ -636,7 +783,7 @@ test('설치를 두 번 해도 hook 항목이 늘지 않는다', () => {
   assert.equal(twice.settings.hooks.SubagentStop.length, 1);
 });
 
-test('검토 hook은 Stop과 SubagentStop에 백그라운드에서 실행되고 Claude를 깨울 수 있는 hook으로 등록된다', () => {
+test('검토 hook은 Stop과 SubagentStop에서 background로 실행되고 지적을 Claude에게 전할 수 있는 hook으로 등록된다', () => {
   const { settings } = mergeHookSettings({});
   for (const event of ['Stop', 'SubagentStop']) {
     const review = settings.hooks[event].map((entry) => entry.hooks[0]).find((hook) => hook.command.includes('review.mjs'));

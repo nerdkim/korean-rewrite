@@ -1,4 +1,4 @@
-/* 설치 테스트입니다. */
+/* 설치 test입니다. */
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -19,10 +19,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* korean-style skill을 설치할 경로입니다. */
 const SKILL_REL = join('.claude', 'skills', 'korean-style', 'SKILL.md');
 
-/* 작성 지침을 설치할 경로입니다. */
+/* output style을 설치할 경로입니다. */
 const STYLE_REL = join('.claude', 'output-styles', 'korean-style.md');
 
-/* 설치할 프로젝트로 쓸 빈 디렉터리입니다. */
+/* 설치할 프로젝트로 쓸 빈 directory입니다. */
 const temporary = [];
 const scratch = () => {
   const root = mkdtempSync(join(tmpdir(), 'korean-style-install-'));
@@ -31,7 +31,7 @@ const scratch = () => {
 };
 after(() => temporary.forEach(path => rmSync(path, { recursive: true, force: true })));
 
-/* git 저장소로 만든 빈 디렉터리입니다. */
+/* git repository로 만든 빈 directory입니다. */
 function gitScratch() {
   const target = scratch();
   const r = spawnSync('git', ['init', '-q'], { cwd: target, encoding: 'utf-8' });
@@ -39,14 +39,14 @@ function gitScratch() {
   return target;
 }
 
-/* 자식 프로세스가 쓸 환경입니다. */
+/* child process가 쓸 환경입니다. */
 function envFor(root) {
   const env = { ...process.env, CLAUDE_PROJECT_DIR: root };
   delete env.KOREAN_STYLE_RULES;
   return env;
 }
 
-/* 설치 스크립트를 자식 프로세스로 띄웁니다. */
+/* 설치 script를 child process로 띄웁니다. */
 function install(target, extra = []) {
   return spawnSync('node', [join(ROOT, 'scripts', 'install.mjs'), '--target', target, ...extra], {
     encoding: 'utf-8',
@@ -108,7 +108,7 @@ test('설치하면 파일이 제자리에 놓인다', () => {
   for (const rel of expected) {
     assert.ok(existsSync(join(target, rel)), `놓이지 않았습니다: ${rel}`);
   }
-  /* 설계 근거 문서는 더 이상 배포하지 않습니다. */
+  /* 설계 근거 문서는 더 이상 설치하지 않습니다. */
   assert.ok(!existsSync(join(target, INSTALLED_DIR, 'docs', 'RESEARCH.md')), '없앤 문서가 설치되었습니다');
 });
 
@@ -130,7 +130,7 @@ test('두 skill이 모두 gitignore에 든다', () => {
   }
 });
 
-test('korean-rewrite skill이 이 저장소의 규칙 검사를 통과한다', () => {
+test('korean-rewrite skill이 이 repository의 규칙 검사를 통과한다', () => {
   /* 자기 규칙을 어기는 skill은 사용자가 곧바로 꺼 버립니다. */
   const rules = loadRules(rulesDocPath(ROOT));
   const body = readFileSync(join(ROOT, 'skill', 'korean-rewrite', 'SKILL.md'), 'utf-8');
@@ -138,7 +138,7 @@ test('korean-rewrite skill이 이 저장소의 규칙 검사를 통과한다', (
   assert.equal(violations.length, 0, `위반이 있습니다: ${JSON.stringify(violations.slice(0, 3))}`);
 });
 
-/* commit-msg hook 테스트입니다. 전에는 설치 스크립트가 명령을 화면에 출력하기만 했습니다. */
+/* commit-msg hook test입니다. 전에는 설치 script가 명령을 화면에 출력하기만 했습니다. */
 
 test('설치하면 commit-msg hook이 실제로 걸린다', () => {
   const target = gitScratch();
@@ -180,10 +180,10 @@ test('두 번 설치해도 commit-msg hook이 하나다', () => {
   assert.equal(realpathSync(join(target, '.git', 'hooks', 'commit-msg')), first);
 });
 
-test('git 저장소가 아니면 commit-msg hook을 걸지 않는다', () => {
+test('git repository가 아니면 commit-msg hook을 걸지 않는다', () => {
   const target = scratch();
   install(target);
-  assert.ok(!existsSync(join(target, '.git')), 'git 디렉터리를 만들면 안 됩니다');
+  assert.ok(!existsSync(join(target, '.git')), 'git directory를 만들면 안 됩니다');
 });
 
 test('--dry-run을 주면 commit-msg hook을 걸지 않는다', () => {
@@ -192,8 +192,8 @@ test('--dry-run을 주면 commit-msg hook을 걸지 않는다', () => {
   assert.ok(!existsSync(join(target, '.git', 'hooks', 'commit-msg')));
 });
 
-test('skill은 설치 디렉터리가 아니라 Claude Code가 찾는 경로에 놓인다', () => {
-  /* 설치 디렉터리 안에 두면 skill이 아예 읽히지 않습니다. */
+test('skill은 설치 directory가 아니라 Claude Code가 찾는 경로에 놓인다', () => {
+  /* 설치 directory 안에 두면 skill이 아예 읽히지 않습니다. */
   const target = scratch();
   install(target);
 
@@ -201,7 +201,7 @@ test('skill은 설치 디렉터리가 아니라 Claude Code가 찾는 경로에 
   assert.ok(!existsSync(join(target, INSTALLED_DIR, 'skill')));
 });
 
-test('규칙 문서는 docs 아래가 아니라 설치 디렉터리 바로 아래에 놓인다', () => {
+test('규칙 문서는 docs 아래가 아니라 설치 directory 바로 아래에 놓인다', () => {
   /* 규칙 문서는 한 곳에만 있어야 합니다. */
   const target = scratch();
   install(target);
@@ -210,7 +210,7 @@ test('규칙 문서는 docs 아래가 아니라 설치 디렉터리 바로 아�
   assert.ok(!existsSync(join(target, INSTALLED_DIR, 'docs', 'rules.md')));
 });
 
-test('설치 스크립트 자체는 설치한 프로젝트에 복사하지 않는다', () => {
+test('설치 script 자체는 설치한 프로젝트에 복사하지 않는다', () => {
   /* 설치된 곳에서 또 설치할 일이 없습니다. */
   const target = scratch();
   install(target);
@@ -267,7 +267,7 @@ test('예전 말투 이름 `다나까체`를 주면 합니다체를 고른 것�
 });
 
 test('0.3.0 기본 규칙으로 설치한 프로젝트에 다시 설치해도 `다나까체`라는 말투 이름은 그대로 둔다', () => {
-  /* 규칙 문서는 팀이 함께 커밋합니다. 이름을 바꾸면 아직 0.3.0을 쓰는 팀원의 검사기가 `합니다체`를 알아보지 못해 말투 검사가 꺼집니다. */
+  /* 규칙 문서는 팀이 함께 commit합니다. 이름을 바꾸면 아직 0.3.0을 쓰는 팀원의 검사기가 `합니다체`를 알아보지 못해 말투 검사가 꺼집니다. */
   const target = scratch();
   assert.equal(install(target).status, 0);
   const rulesPath = join(target, INSTALLED_DIR, 'rules.md');
@@ -291,7 +291,7 @@ test('`--register`로 말투를 고르면 규칙 문서에 새 이름을 적는�
   assert.match(readFileSync(rulesPath, 'utf8'), /^register: 합니다체$/m);
 });
 
-test('다시 설치해도 작성 지침, skill, 검사기가 처음 고른 말투를 따른다', () => {
+test('다시 설치해도 output style, skill, 검사기가 처음 고른 말투를 따른다', () => {
   const target = scratch();
   assert.equal(install(target, ['--register', '해요체']).status, 0);
   assert.equal(install(target).status, 0);
@@ -397,17 +397,17 @@ test('--register 값에 따라 설치된 검사기의 결과가 실제로 달라
   assert.match(r.stdout, /wrong-register/);
 });
 
-test('작성 지침 본문이 이 저장소의 규칙 검사를 통과한다', () => {
-  /* 작성 지침에는 Claude가 글을 쓰기 전에 따를 원칙이 들어 있습니다. 검사기는 Claude가 쓴 글에서 금지 목록의 표현을 찾습니다. */
+test('output style 본문이 이 repository의 규칙 검사를 통과한다', () => {
+  /* output style에는 Claude가 글을 쓰기 전에 따를 원칙이 들어 있습니다. 검사기는 Claude가 쓴 글에서 금지 목록의 표현을 찾습니다. */
   const rules = loadRules(rulesDocPath(ROOT));
   assert.notEqual(rules.source, null, '규칙 문서를 읽지 못했습니다');
 
   const body = readFileSync(join(ROOT, 'output-styles', 'korean-style.md'), 'utf-8');
   const violations = checkText(body, rules, 'doc');
-  assert.equal(violations.length, 0, `작성 지침이 이 저장소의 규칙을 어겼습니다\n${JSON.stringify(violations, null, 2)}`);
+  assert.equal(violations.length, 0, `output style이 이 repository의 규칙을 어겼습니다\n${JSON.stringify(violations, null, 2)}`);
 });
 
-test('설치할 때 고른 말투의 문구를 작성 지침에도 넣는다', () => {
+test('설치할 때 고른 말투의 문구를 output style에도 넣는다', () => {
   /* skill과 같은 문구를 써야 합니다. */
   const target = scratch();
   const r = install(target, ['--register', '해요체']);
@@ -421,22 +421,22 @@ test('설치할 때 고른 말투의 문구를 작성 지침에도 넣는다', (
   assert.ok(body.includes('문장을 다듬더라도 뜻은 그대로 지킵니다'), '공통 지침이 사라졌습니다');
 });
 
-test('골라 둔 output-style이 없으면 이 도구의 작성 지침을 켠다', () => {
-  /* 파일을 두기만 하고 켜지 않으면 Claude Code는 작성 지침을 시스템 프롬프트에 넣지 않습니다. */
+test('골라 둔 output style이 없으면 이 도구의 output style을 켠다', () => {
+  /* 파일을 두기만 하고 켜지 않으면 Claude Code는 output style을 system prompt에 넣지 않습니다. */
   const { settings, set } = mergeOutputStyle({});
   assert.equal(set, true);
   assert.equal(settings.outputStyle, 'korean-style');
 });
 
-test('--activate를 주지 않으면 이미 골라 둔 output-style을 덮어쓰지 않는다', () => {
-  /* 한 세션에 하나만 켜집니다. */
+test('--activate를 주지 않으면 이미 골라 둔 output style을 덮어쓰지 않는다', () => {
+  /* 한 session에 하나만 켜집니다. */
   const { settings, set, kept } = mergeOutputStyle({ outputStyle: 'explanatory' });
   assert.equal(set, false);
   assert.equal(kept, 'explanatory');
   assert.equal(settings.outputStyle, 'explanatory');
 });
 
-test('설치 스크립트가 settings.json에 output-style을 적고 남의 키는 지우지 않는다', () => {
+test('설치 script가 settings.json에 output style 설정을 적고 남의 키는 지우지 않는다', () => {
   const target = scratch();
   mkdirSync(join(target, '.claude'), { recursive: true });
   writeFileSync(join(target, '.claude', 'settings.json'), JSON.stringify({ env: { A: '1' } }), 'utf-8');
@@ -449,7 +449,7 @@ test('설치 스크립트가 settings.json에 output-style을 적고 남의 키�
 });
 
 test('설치하면 프로젝트 설정에 진행 보고 요약을 끄는 값을 넣는다', () => {
-  /* 이 값이 없으면 Claude가 쓴 진행 보고 일부가 서버가 요약한 문장으로 바뀌어 화면에 나옵니다. 이 문장은 skill과 검사기를 거치지 않습니다. */
+  /* 이 값이 없으면 Claude가 쓴 진행 보고 일부가 server가 요약한 문장으로 바뀌어 화면에 나옵니다. 이 문장은 skill과 검사기를 거치지 않습니다. */
   const target = scratch();
   assert.equal(install(target).status, 0);
   assert.equal(jsonAt(join(target, '.claude', 'settings.json')).env[PROGRESS_SUMMARY_ENV], '0');
@@ -465,7 +465,7 @@ test('isOffValue는 Claude Code가 끔으로 읽는 값만 끄는 값으로 본�
   for (const value of [undefined, null, '', '1', 'true', 'on', 'disabled', 1, true]) assert.ok(!isOffValue(value), `끄는 값이 아닙니다: ${JSON.stringify(value)}`);
 });
 
-test('설치 스크립트는 프로젝트가 켜 둔 진행 보고 요약을 끄지 않고 doctor는 주의를 출력한다', () => {
+test('설치 script는 프로젝트가 켜 둔 진행 보고 요약을 끄지 않고 doctor는 주의를 출력한다', () => {
   const target = scratch();
   const path = join(target, '.claude', 'settings.json');
   saveJson(path, { env: { [PROGRESS_SUMMARY_ENV]: '1' } });
@@ -478,7 +478,7 @@ test('설치 스크립트는 프로젝트가 켜 둔 진행 보고 요약을 끄
   assert.match(checked.stdout, /주의 {2}.*요약을 끄는 값이 아니어서.*직접 0으로/);
 });
 
-test('doctor는 진행 보고 요약을 끄는 값이 없으면 주의를 출력하고 로컬 설정의 값을 우선한다', () => {
+test('doctor는 진행 보고 요약을 끄는 값이 없으면 주의를 출력하고 local 설정의 값을 우선한다', () => {
   const target = scratch();
   assert.equal(install(target).status, 0);
   const path = join(target, '.claude', 'settings.json');
@@ -489,7 +489,7 @@ test('doctor는 진행 보고 요약을 끄는 값이 없으면 주의를 출력
   assert.match(doctor(target).stdout, /통과 {2}.*진행 보고가 화면에 나오지 않습니다/);
 });
 
-test('설치하면 Claude Code가 커밋 메시지와 PR 설명에 붙이는 생성 표시를 끈다', () => {
+test('설치하면 Claude Code가 commit 메시지와 PR 설명에 붙이는 생성 표시를 끈다', () => {
   const target = scratch();
   assert.equal(install(target).status, 0);
   assert.deepEqual(jsonAt(join(target, '.claude', 'settings.json')).attribution, { commit: '', pr: '' });
@@ -513,7 +513,7 @@ test('doctor는 생성 표시가 켜져 있으면 주의를 출력한다', () =>
   saveJson(path, { ...jsonAt(path), attribution: { pr: '' } });
   const missing = doctor(target);
   assert.equal(missing.status, 0, '생성 표시가 켜진 것은 설치 실패가 아닙니다');
-  assert.match(missing.stdout, /주의 {2}.*커밋 메시지.*생성 표시.*다시 실행/);
+  assert.match(missing.stdout, /주의 {2}.*commit 메시지.*생성 표시.*다시 실행/);
   saveJson(path, { ...jsonAt(path), attribution: { commit: '', pr: '🤖 Generated with [Claude Code](https://claude.com/claude-code)' } });
   assert.match(doctor(target).stdout, /주의 {2}.*생성 표시.*PR 설명.*직접/);
 });
@@ -537,13 +537,13 @@ test('설치한 프로젝트에서 doctor가 실패 없이 끝난다', () => {
   assert.equal(r.status, 0, `점검이 실패로 끝났습니다\n${r.stdout}\n${r.stderr}`);
   assert.match(r.stdout, /설치된 프로젝트/, 'doctor가 설치된 프로젝트임을 알아보지 못했습니다');
   assert.match(r.stdout, /실패 0개/, `실패가 남아 있습니다\n${r.stdout}`);
-  for (const line of ['규칙 문서가 있고', '자체 검사를 통과', 'pretooluse', 'stop', 'Task', 'output-style 파일이 있습니다']) {
+  for (const line of ['규칙 문서가 있고', '자체 검사를 통과', 'pretooluse', 'stop', 'Task', 'output style 파일이 있습니다']) {
     assert.ok(r.stdout.includes(line), `doctor 출력에 "${line}" 문구가 없습니다\n${r.stdout}`);
   }
 });
 
 test('규칙 문서가 없으면 점검이 실패로 끝난다', () => {
-  /* 통과하는 경우만 확인하면 아무것도 검사하지 않는 스크립트도 테스트를 통과합니다. */
+  /* 통과하는 경우만 확인하면 아무것도 검사하지 않는 script도 test를 통과합니다. */
   const target = scratch();
   install(target);
   rmSync(join(target, INSTALLED_DIR, 'rules.md'));
@@ -553,12 +553,12 @@ test('규칙 문서가 없으면 점검이 실패로 끝난다', () => {
   assert.match(r.stdout, /규칙 문서가 없습니다/);
 });
 
-test('git이 작성 지침을 빼고 규칙 문서는 남긴다', () => {
+test('git이 output style을 빼고 규칙 문서는 남긴다', () => {
   const target = gitScratch();
   install(target);
 
   const ignored = (rel) => spawnSync('git', ['check-ignore', '-q', rel], { cwd: target }).status === 0;
-  assert.ok(ignored(STYLE_REL), '작성 지침이 커밋 대상입니다');
+  assert.ok(ignored(STYLE_REL), 'output style이 commit 대상입니다');
   assert.ok(!ignored(join(INSTALLED_DIR, 'rules.md')), '규칙 문서가 Git에서 제외되었습니다');
 });
 
@@ -571,7 +571,7 @@ test('--dry-run을 주면 아무것도 쓰지 않는다', () => {
   assert.ok(!existsSync(join(target, '.claude')));
 });
 
-test('이 도구의 저장소에는 설치하지 않는다', () => {
+test('이 도구의 repository에는 설치하지 않는다', () => {
   /* 설치하면 기준이 되는 규칙 문서가 둘이 됩니다. */
   const r = install(ROOT);
 
@@ -636,13 +636,13 @@ test('원래 있던 설정을 지우지 않는다', () => {
   assert.equal(settings.hooks.Stop[0].hooks[0].command, 'echo 남의 hook');
 });
 
-test('git 저장소에 설치하면 gitignore에 줄이 생긴다', () => {
+test('git repository에 설치하면 gitignore에 줄이 생긴다', () => {
   const target = gitScratch();
   const r = install(target);
   assert.equal(r.status, 0, r.stderr);
 
   const ignore = readFileSync(join(target, '.gitignore'), 'utf-8');
-  assert.ok(ignore.includes(`${INSTALLED_DIR}/*`), '설치 디렉터리를 빼는 줄이 없습니다');
+  assert.ok(ignore.includes(`${INSTALLED_DIR}/*`), '설치 directory를 빼는 줄이 없습니다');
   assert.ok(ignore.includes(`!${INSTALLED_DIR}/rules.md`), '규칙 문서를 남기는 줄이 없습니다');
   assert.ok(ignore.includes('.claude/skills/korean-style/'), 'skill을 빼는 줄이 없습니다');
 });
@@ -654,11 +654,11 @@ test('설치할 때 복사한 파일은 git이 실제로 빼고 규칙 문서와
 
   const ignored = (rel) => spawnSync('git', ['check-ignore', '-q', rel], { cwd: target }).status === 0;
 
-  assert.ok(ignored(join(INSTALLED_DIR, 'scripts', 'check-korean.mjs')), '검사기가 커밋 대상입니다');
-  assert.ok(ignored(join(INSTALLED_DIR, 'docs', 'limits.md')), '제약 문서가 커밋 대상입니다');
-  assert.ok(ignored(SKILL_REL), 'skill이 커밋 대상입니다');
+  assert.ok(ignored(join(INSTALLED_DIR, 'scripts', 'check-korean.mjs')), '검사기가 commit 대상입니다');
+  assert.ok(ignored(join(INSTALLED_DIR, 'docs', 'limits.md')), '제약 문서가 commit 대상입니다');
+  assert.ok(ignored(SKILL_REL), 'skill이 commit 대상입니다');
 
-  /* 이 둘은 설치한 프로젝트에서 커밋할 파일입니다. */
+  /* 이 둘은 설치한 프로젝트에서 commit할 파일입니다. */
   assert.ok(!ignored(join(INSTALLED_DIR, 'rules.md')), '규칙 문서가 Git에서 제외되었습니다');
   assert.ok(!ignored(join('.claude', 'settings.json')), 'hook 설정 파일이 Git에서 제외되었습니다');
 });
@@ -728,7 +728,7 @@ test('이 도구 경로를 직접 적어 둔 gitignore는 손대지 않는다', 
   assert.equal(readFileSync(join(target, '.gitignore'), 'utf-8'), mine);
 });
 
-test('git 저장소가 아니면 gitignore와 .worktreeinclude를 만들지 않는다', () => {
+test('git repository가 아니면 gitignore와 .worktreeinclude를 만들지 않는다', () => {
   /* 아무것도 막지 못하는 파일을 남기면 사용자는 이 도구가 무언가를 보장한다고 오해합니다. */
   const target = scratch();
   const r = install(target);
@@ -780,7 +780,7 @@ test('설치된 검사기가 프로젝트 문서의 위반을 잡는다', () => 
   assert.match(r.stdout, /double-passive/);
   assert.match(r.stdout, /bad\.md/);
 
-  /* 설치 스크립트가 복사한 파일은 세지 않습니다. */
+  /* 설치 script가 복사한 파일은 검사한 파일 수에 넣지 않습니다. */
   assert.match(r.stdout, /파일 2개/);
 });
 
@@ -813,14 +813,14 @@ test('설치된 hook이 규칙을 지킨 글은 막지 않는다', () => {
   assert.equal(out, null);
 });
 
-test('설치된 hook은 새로 쓴 글에 영어식 표현으로 보이는 곳이 있으면 쓰기를 막지 않고 Claude에게 알린다', () => {
+test('설치된 hook은 새로 쓴 글에 번역투로 보이는 곳이 있으면 쓰기를 막지 않고 Claude에게 알린다', () => {
   /* 설치된 규칙 문서에 review-rules가 들어가지 않으면 이 알림은 아무 표시 없이 꺼집니다. */
   const target = scratch();
   install(target);
 
   const out = runInstalledHook(target, {
     tool_name: 'Write',
-    tool_input: { file_path: join(target, 'docs', 'note.md'), content: '# 제목\n\n로그를 통해 원인을 찾았습니다.\n' },
+    tool_input: { file_path: join(target, 'docs', 'note.md'), content: '# 제목\n\n값을 변경하는 것이 가능합니다.\n' },
     cwd: target,
   });
 
@@ -835,7 +835,7 @@ const doctor = target => spawnSync('node', [join(target, INSTALLED_DIR, 'scripts
 const git = (target, args) => spawnSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', ...args],
   { cwd: target, encoding: 'utf8', env: envFor(ROOT) });
 
-test('Claude 세션 안에서도 현재 프로젝트에 설치할 수 있고 이 도구의 저장소를 가리키는 symlink에는 설치하지 않는다', () => {
+test('Claude session 안에서도 현재 프로젝트에 설치할 수 있고 이 도구의 repository를 가리키는 symlink에는 설치하지 않는다', () => {
   const target = scratch();
   const r = spawnSync('node', [join(ROOT, 'scripts/install.mjs'), '--target', target], { encoding: 'utf8', env: envFor(target) });
   assert.equal(r.status, 0, r.stderr);
@@ -845,7 +845,7 @@ test('Claude 세션 안에서도 현재 프로젝트에 설치할 수 있고 이
   assert.equal(install(alias).status, 2);
 });
 
-test('잘못된 옵션과 형식이 틀린 hook 설정은 파일을 바꾸기 전에 거부한다', () => {
+test('잘못된 option과 형식이 틀린 hook 설정은 파일을 바꾸기 전에 거부한다', () => {
   for (const extra of [['--unknown'], ['--register'], ['--target']]) {
     const target = scratch();
     assert.equal(install(target, extra).status, 2);
@@ -862,7 +862,7 @@ test('잘못된 옵션과 형식이 틀린 hook 설정은 파일을 바꾸기 �
   }
 });
 
-test('이름이 같은 기존 output-style을 덮어쓰지 않고 프로젝트 밖을 가리키는 symlink를 따라가 쓰지도 않는다', () => {
+test('이름이 같은 기존 output style을 덮어쓰지 않고 프로젝트 밖을 가리키는 symlink를 따라가 쓰지도 않는다', () => {
   for (const link of [false, true]) {
     const target = scratch(), external = scratch();
     if (link) symlinkSync(external, join(target, '.claude'));
@@ -874,8 +874,8 @@ test('이름이 같은 기존 output-style을 덮어쓰지 않고 프로젝트 �
   }
 });
 
-test('설치 스크립트는 `korean-writer` agent 파일을 `.claude/agents/`에 설치하고 설치 표시 문구가 없는 같은 이름의 파일은 덮어쓰지 않는다', () => {
-  /* 설치 스크립트는 `.gitignore`와 `.worktreeinclude`에 agent 파일 경로를 추가합니다. 설치 표시 문구가 없는 같은 이름의 파일이 있으면 덮어쓰지 않고 멈춥니다. 설치 표시 문구가 든 파일은 다시 설치할 때 새 내용으로 바꿉니다. 이 저장소의 원본에는 설치 표시 문구가 없고 설치할 때 frontmatter에 넣습니다. */
+test('설치 script는 `korean-writer` agent 파일을 `.claude/agents/`에 설치하고 설치 표시 문구가 없는 같은 이름의 파일은 덮어쓰지 않는다', () => {
+  /* 설치 script는 `.gitignore`와 `.worktreeinclude`에 agent 파일 경로를 추가합니다. 설치 표시 문구가 없는 같은 이름의 파일이 있으면 덮어쓰지 않고 멈춥니다. 설치 표시 문구가 든 파일은 다시 설치할 때 새 내용으로 바꿉니다. 이 repository의 원본에는 설치 표시 문구가 없습니다. 설치 script는 설치할 파일의 frontmatter에 이 문구를 넣습니다. */
   const agentRel = join('.claude', 'agents', 'korean-writer.md');
   const original = readFileSync(join(ROOT, 'agents', 'korean-writer.md'), 'utf8');
   assert.ok(!original.includes('korean-style이 설치한 파일입니다.'));
@@ -920,7 +920,7 @@ test('고치지 않은 예전 기본 규칙만 새 규칙으로 바꾸고 사용
   assert.equal(readFileSync(join(target, INSTALLED_DIR, backup), 'utf8'), custom);
 });
 
-test('--activate를 주면 프로젝트 설정의 outputStyle만 바꾸고 다른 설정 키와 로컬 설정은 유지한다', () => {
+test('--activate를 주면 프로젝트 설정의 outputStyle만 바꾸고 다른 설정 키와 local 설정은 유지한다', () => {
   const target = scratch();
   const path = join(target, '.claude/settings.json');
   const local = join(target, '.claude/settings.local.json');
@@ -956,7 +956,7 @@ test('다시 설치하면 사용자 hook 항목의 matcher는 넓히지 않고 �
   assert.equal(doctor(target).status, 0);
 });
 
-test('doctor는 hook이 다른 이벤트에 있거나 파일 이름만 같은 엉뚱한 명령이면 통과시키지 않는다', () => {
+test('doctor는 hook이 다른 event에 있거나 파일 이름만 같은 엉뚱한 명령이면 통과시키지 않는다', () => {
   const target = scratch();
   install(target);
   const path = join(target, '.claude/settings.json');
@@ -985,7 +985,7 @@ test('core.hooksPath를 따로 지정해도 실제 git commit을 검사하고 �
   assert.equal(readFileSync(path, 'utf8'), mine);
 });
 
-test('작업 트리끼리 같이 쓰는 hook은 커밋하는 작업 트리의 규칙을 따른다', () => {
+test('worktree끼리 같이 쓰는 hook은 commit하는 worktree의 규칙을 따른다', () => {
   const target = gitScratch();
   assert.equal(git(target, ['commit', '--allow-empty', '-m', 'init']).status, 0);
   const worktree = join(scratch(), '한글 worktree');
@@ -1040,7 +1040,7 @@ function runHookCommand(target, event, input = {}) {
 }
 
 test('회귀: clone한 직후 설치 명령을 실행하기 전에도 hook이 실패하지 않고 다시 설치하라는 안내를 남긴다', () => {
-  /* 설치 스크립트가 복사한 hook 스크립트는 Git에서 제외되므로 새로 clone한 저장소에는 없습니다. 예전에는 hook 셋이 이벤트마다 "Cannot find module"로 실패했습니다. */
+  /* 설치 script가 복사한 hook script는 Git에서 제외되므로 새로 clone한 repository에는 없습니다. 예전에는 hook 셋이 event마다 "Cannot find module"로 실패했습니다. */
   const target = gitScratch();
   assert.equal(install(target).status, 0);
   assert.equal(git(target, ['add', '.gitignore', '.worktreeinclude', '.korean-style/rules.md', '.korean-style/defaults.sha256', '.claude/settings.json']).status, 0);
@@ -1057,7 +1057,7 @@ test('회귀: clone한 직후 설치 명령을 실행하기 전에도 hook이 �
   }
 });
 
-test('hook 스크립트가 있으면 hook 명령이 스크립트를 실행하고 그 결과를 그대로 넘긴다', () => {
+test('hook script가 있으면 hook 명령이 script를 실행하고 그 결과를 그대로 넘긴다', () => {
   const target = scratch();
   install(target);
 
@@ -1088,8 +1088,8 @@ test('0.3.3까지 설치한 hook 명령은 다시 설치하면 새 명령으로 
   assert.equal(doctor(target).status, 0);
 });
 
-test('git 저장소에 설치하면 작업 트리에 복사할 설치 파일을 .worktreeinclude에 적고 다시 설치해도 줄이 쌓이지 않는다', () => {
-  /* Claude Code는 `claude --worktree`로 작업 트리를 만들 때 Git에서 제외된 파일 가운데 .worktreeinclude의 패턴에 맞는 파일만 복사합니다. */
+test('git repository에 설치하면 worktree에 복사할 설치 파일을 .worktreeinclude에 적고 다시 설치해도 줄이 쌓이지 않는다', () => {
+  /* Claude Code는 `claude --worktree`로 worktree를 만들 때 Git에서 제외된 파일 가운데 .worktreeinclude의 pattern에 맞는 파일만 복사합니다. */
   const target = gitScratch();
   writeFileSync(join(target, '.worktreeinclude'), '.env\n');
   assert.equal(install(target).status, 0);
@@ -1110,7 +1110,7 @@ test('git 저장소에 설치하면 작업 트리에 복사할 설치 파일을 
     '.claude/skills/korean-rewrite/SKILL.md',
     '.claude/skills/korean-style/SKILL.md',
     '.claude/output-styles/korean-style.md',
-  ]) assert.ok(copied.includes(path), `작업 트리에 복사되지 않는 파일입니다: ${path}`);
+  ]) assert.ok(copied.includes(path), `worktree에 복사되지 않는 파일입니다: ${path}`);
   assert.ok(!copied.includes(`${INSTALLED_DIR}/rules.md`));
 });
 
@@ -1122,7 +1122,7 @@ test('README의 shell 설치 명령을 새 프로젝트와 기존 프로젝트�
   assert.equal(git(source, ['add', '.']).status, 0);
   assert.equal(git(source, ['commit', '-qm', 'fixture']).status, 0);
   const readme = readFileSync(join(ROOT, 'README.md'), 'utf8').match(/```sh\n([\s\S]*?)\n```/)[1];
-  /* GitHub 대신 이 저장소의 파일을 복사해 커밋한 임시 저장소를 npx로 받습니다. 받은 패키지에는 package.json의 `files`에 적힌 파일만 들어 있습니다. */
+  /* GitHub 대신 이 repository의 파일을 복사해 commit한 임시 repository를 npx로 받습니다. 받은 package에는 package.json의 `files`에 적힌 파일만 들어 있습니다. */
   const instructions = readme.replace(/github:[\w.-]+\/[\w.-]+/, `git+file://${source}`);
   assert.notEqual(instructions, readme, 'README의 첫 설치 명령이 npx 형식이 아닙니다');
   const npmEnv = { npm_config_cache: join(scratch(), 'npm-cache'), npm_config_update_notifier: 'false',

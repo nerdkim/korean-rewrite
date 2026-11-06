@@ -1,4 +1,4 @@
-/* 검사기를 명령줄에서 실행하는 테스트입니다. */
+/* 검사기를 명령줄에서 실행하는 test입니다. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CLI = join(ROOT, 'scripts', 'check-korean.mjs');
 
-/* 검사기를 자식 프로세스로 띄웁니다. */
+/* 검사기를 child process로 띄웁니다. */
 function run(args, { stdin, rules } = {}) {
   const env = { ...process.env, CLAUDE_PROJECT_DIR: ROOT };
   if (rules === undefined) delete env.KOREAN_STYLE_RULES;
@@ -35,10 +35,39 @@ const REGISTER_VIOLATION = '확인했어요. 곧 알려 드릴게요.';
 const CLEAN = '작업을 마쳤습니다. 결과를 정리해 드리겠습니다.';
 
 test('경고만 있으면 보고만 하고 --strict를 주었을 때만 실패한다', () => {
-  const normal = run(['--text', 'API를 통해 확인합니다.']);
+  const normal = run(['--text', 'API로 확인하는 것이 가능합니다.']);
   assert.equal(normal.status, 0);
   assert.match(normal.stdout, /경고 1건/);
-  assert.equal(run(['--text', 'API를 통해 확인합니다.', '--strict']).status, 1);
+  assert.equal(run(['--text', 'API로 확인하는 것이 가능합니다.', '--strict']).status, 1);
+});
+
+test('IT 용어의 한글 음차는 문서와 commit 메시지에서 오류로, 답변에서 경고로 보고한다', () => {
+  for (const target of ['doc', 'commit']) {
+    const r = run(['--text', '테스트를 마쳤습니다.', '--target', target]);
+    assert.equal(r.status, 1, `${target}: ${r.stdout}`);
+    assert.match(r.stdout, /\[transliteration\] 1줄: .*"테스트" → "test"/);
+  }
+  const chat = run(['--text', '테스트를 마쳤습니다.', '--target', 'chat']);
+  assert.equal(chat.status, 0, chat.stdout);
+  assert.match(chat.stdout, /오류 0건, 경고 1건/);
+});
+
+test('일반 독자용 표시 줄이 있는 파일에는 IT 용어 표 규칙을 적용하지 않는다', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'korean-style-cli-'));
+  const notice = join(dir, 'notice.md');
+  writeFileSync(notice, '<!-- korean-style: general-reader -->\n# 점검 안내\n\n서버 점검 동안 로그인할 수 없습니다.\n', 'utf-8');
+  const r = run(['--file', notice]);
+  assert.equal(r.status, 0, r.stdout);
+  const developer = join(dir, 'developer.md');
+  writeFileSync(developer, '# 점검 안내\n\n서버 점검 동안 로그인할 수 없습니다.\n', 'utf-8');
+  assert.equal(run(['--file', developer]).status, 1);
+});
+
+test('--rules는 일반 뜻도 있는 음차, 번역어, 번역투, 어려운 한자어, 구어 목록의 항목 수도 보여 준다', () => {
+  const r = run(['--rules']);
+  assert.equal(r.status, 0);
+  assert.match(r.stdout, /일반 뜻도 있는 음차 \d+, 번역어 \d+, 번역투 \d+/);
+  assert.match(r.stdout, /어려운 한자어 \d+, 구어 \d+/);
 });
 
 test('회귀: --text 다음에 문장이 없으면 통과라고 보고하지 않는다', () => {
@@ -58,7 +87,7 @@ test('--explain 다음에 규칙 이름이 없으면 사용법 오류다', () =>
   assert.equal(r.status, 2);
 });
 
-test('아무 인자도 없으면 사용법 오류다', () => {
+test('argument가 하나도 없으면 사용법 오류다', () => {
   const r = run([]);
   assert.equal(r.status, 2);
 });
@@ -136,7 +165,7 @@ test('회귀: 프로젝트 밖에 있는 규칙 문서를 읽으면 그 경로�
   assert.ok(r.stdout.includes(`프로젝트 규칙 문서: ${path}`), r.stdout);
 });
 
-test('프로젝트 규칙 문서에 없는 규칙의 설명은 도구와 함께 배포한 기본 규칙 문서에서 찾는다', () => {
+test('프로젝트 규칙 문서에 없는 규칙의 설명은 이 도구에 들어 있는 기본 규칙 문서에서 찾는다', () => {
   /* 직접 고친 예전 규칙 문서에는 새로 생긴 규칙의 설명이 없습니다. 그래도 Stop hook은 그 규칙에 걸린 답변을 다시 쓰게 하고 `--explain` 명령을 안내합니다. */
   const path = join(mkdtempSync(join(tmpdir(), 'korean-style-cli-')), 'rules.md');
   writeFileSync(path, '```korean-style-rules\nregister: 다나까체\n```\n', 'utf-8');

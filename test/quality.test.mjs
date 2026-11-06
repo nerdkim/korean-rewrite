@@ -11,11 +11,10 @@ const rulesPath = fileURLToPath(new URL('../docs/rules.md', import.meta.url));
 const rules = loadRules(rulesPath);
 
 const natural = [
-  '문을 통해 들어갑니다.',
   '책을 가지고 있습니다.',
   '예전에는 서울에 살았었습니다.',
   '디스크에서 자리를 차지하는 파일입니다.',
-  '하지만, 이 경우에는 별도로 확인할 필요가 있습니다.',
+  '하지만, 오랜 수행을 통해 마음을 다스렸습니다.',
   '이 방법은 요청이 성공하는 것을 보장하지 않습니다.',
 ];
 for (const text of natural) test(`문맥을 봐야 판단할 수 있는 표현에는 경고만 하고 막지 않는다: ${text}`, () => {
@@ -30,8 +29,8 @@ test('실제 표기 오류와 이중피동은 계속 막는다', () => {
   assert.ok(blockingViolations(checkText('결과가 보여집니다.', rules)).some(v => v.rule === 'double-passive'));
 });
 
-test('영어를 낱말 단위로 옮겨 만든 말은 답변, 문서, 커밋 메시지에서 막고 풀어 쓴 말과 굳은 말, 코드나 따옴표로 감싼 말은 답변에서 막지 않는다', () => {
-  /* 이 도구를 설치하고 skill을 부른 세션에서 Claude가 `untracked`를 `미추적`으로 옮겨 썼습니다. 사용자는 Claude가 `비멱등`이라고 쓴 답변을 보았다고 알려 왔습니다. */
+test('영어를 낱말 단위로 옮겨 만든 말은 답변, 문서, commit 메시지에서 막고 풀어 쓴 말과 굳은 말, 코드나 따옴표로 감싼 말은 답변에서 막지 않는다', () => {
+  /* 이 도구를 설치한 프로젝트에서 Claude가 skill을 부른 뒤 `untracked`를 `미추적`으로 옮겨 썼습니다. 사용자는 Claude가 `비멱등`이라고 쓴 답변을 보았다고 알려 왔습니다. */
   for (const target of ['chat', 'doc', 'commit']) {
     for (const text of ['비멱등 요청은 다시 보내면 안 됩니다.', 'POST는 비멱등이라 재시도하지 않습니다.', 'main checkout의 미추적 file 2개를 지웠습니다.']) {
       assert.ok(blockingViolations(checkText(text, rules, target)).some(v => v.rule === 'calque'), `${target}: ${text}`);
@@ -51,7 +50,7 @@ test('영어를 낱말 단위로 옮겨 만든 말은 답변, 문서, 커밋 메
 });
 
 test('항목을 새로 넣는 일을 `더하다`로 쓴 문장은 경고로 알리고 다른 뜻으로 쓴 `더하다`는 알리지 않는다', () => {
-  /* 첫 문장은 사용자가 알려 온 답변과 같은 꼴로 만든 문장입니다. 나머지 세 문장은 Claude가 이 도구를 설치한 세션에서 쓰거나 이 저장소의 지침에 쓴 문장입니다. */
+  /* 첫 문장은 사용자가 알려 온 답변과 같은 꼴로 만든 문장입니다. 나머지 세 문장은 Claude가 이 도구를 설치한 프로젝트에서 쓰거나 이 repository의 지침에 쓴 문장입니다. */
   for (const text of [
     '검색 대상에 사내 위키 저장소(docs/wiki)를 더하면 장애 대응 절차까지 답할 수 있습니다.',
     '같은 방식으로 회귀 테스트 두 개를 더합니다.',
@@ -79,7 +78,7 @@ test('항목을 새로 넣는 일을 `더하다`로 쓴 문장은 경고로 알�
 });
 
 test('영어를 낱말 단위로 옮긴 `반랙`, `응답 모양`, `바깥 접속`은 막고 `코드 밖에서`, `어떤 모양으로`, run을 옮긴 `돌다`, test를 옮긴 `시험`은 경고로 알린다', () => {
-  /* 사용자는 Claude가 `반랙`과 `코드 밖에서 만든`을 쓴 답변을 보았다고 알려 왔습니다. 아래 문장은 같은 말을 넣어 새로 만든 문장입니다. `응답 모양`은 이 도구를 설치한 세션의 답변에서 여러 번 나왔습니다. */
+  /* 사용자는 Claude가 `반랙`과 `코드 밖에서 만든`을 쓴 답변을 보았다고 알려 왔습니다. 아래 문장은 같은 말을 넣어 새로 만든 문장입니다. `응답 모양`은 이 도구를 설치한 프로젝트에서 받은 답변에 여러 번 나왔습니다. */
   for (const target of ['chat', 'doc']) {
     for (const text of ['반랙 하나에 서버 네 대를 넣었습니다.', '공개 sample key로 응답 모양을 확인했습니다.', '바깥 접속을 켜고 다시 확인했습니다.']) {
       assert.ok(blockingViolations(checkText(text, rules, target)).some(v => v.rule === 'calque'), `${target}: ${text}`);
@@ -88,7 +87,7 @@ test('영어를 낱말 단위로 옮긴 `반랙`, `응답 모양`, `바깥 접�
   const found = checkText('코드 밖에서 만든 보안 그룹을 어떤 모양으로 정리할지 정해야 합니다.', rules, 'chat');
   assert.deepEqual(found.filter(v => v.rule === 'translationese').map(v => v.severity), ['warning', 'warning']);
   assert.equal(blockingViolations(found).length, 0);
-  /* 이 도구를 설치한 세션의 답변에는 run을 옮긴 `돌다`와 test를 옮긴 `시험`도 여러 번 나왔습니다. */
+  /* 이 도구를 설치한 프로젝트에서 받은 답변에는 run을 옮긴 `돌다`와 test를 옮긴 `시험`도 여러 번 나왔습니다. */
   for (const text of ['PR #25의 check가 돌고 있습니다.', '지금 prod 배포가 돕니다.', '문서만 바뀌어 deploy는 돌지 않습니다.', '시험용 APK를 올렸습니다.']) {
     const warned = checkText(text, rules, 'chat');
     assert.ok(warned.some(v => v.rule === 'translationese' && v.severity === 'warning'), text);
@@ -133,15 +132,15 @@ test('`승인을 묻다`는 경고로 알리고 승인 여부를 묻거나 승�
 });
 
 test('제목이나 항목 이름이 `왜` 하나뿐인 줄은 경고로 알리고 다른 말이 붙은 제목과 문장 속 `왜`는 알리지 않는다', () => {
-  /* 사용자는 Claude가 영어 `Why`를 `왜`로 옮긴 제목을 자주 쓴다고 알려 왔습니다. 팀이 정한 PR 템플릿에 이런 제목이 들어 있을 수도 있어서 검사기는 오류로 막지 않고 경고로만 알립니다. */
+  /* 사용자는 Claude가 영어 `Why`를 `왜`로 옮긴 제목을 자주 쓴다고 알려 왔습니다. 팀이 정한 PR template에 이런 제목이 들어 있을 수도 있어서 검사기는 오류로 막지 않고 경고로만 알립니다. */
   const flagged = [
-    '## 왜\n\n캐시가 비어 요청이 실패했습니다.',
-    '### 왜?\n\n캐시가 비었습니다.',
-    '**왜**\n\n캐시가 비어 요청이 실패했습니다.',
-    '**왜:** 캐시가 비어 요청이 실패했습니다.',
-    '- **왜**: 캐시가 비어 요청이 실패했습니다.',
-    '- 왜: 캐시가 비어 요청이 실패했습니다.',
-    '| 바꾼 내용 | 왜 |\n| --- | --- |\n| 캐시를 비웁니다 | 요청이 실패했습니다 |',
+    '## 왜\n\ncache가 비어 요청이 실패했습니다.',
+    '### 왜?\n\ncache가 비었습니다.',
+    '**왜**\n\ncache가 비어 요청이 실패했습니다.',
+    '**왜:** cache가 비어 요청이 실패했습니다.',
+    '- **왜**: cache가 비어 요청이 실패했습니다.',
+    '- 왜: cache가 비어 요청이 실패했습니다.',
+    '| 바꾼 내용 | 왜 |\n| --- | --- |\n| cache를 비웁니다 | 요청이 실패했습니다 |',
   ];
   for (const target of ['chat', 'doc', 'commit']) {
     for (const text of flagged) {
@@ -151,20 +150,20 @@ test('제목이나 항목 이름이 `왜` 하나뿐인 줄은 경고로 알리�
     }
   }
   for (const text of [
-    '## 문제 및 원인\n\n캐시가 비어 요청이 실패했습니다.',
-    '## 왜 이런 일이 생기나\n\n스케줄러는 requests 합계를 봅니다.',
-    '왜 배포가 실패했는지 설명해 주십시오.',
+    '## 문제 및 원인\n\ncache가 비어 요청이 실패했습니다.',
+    '## 왜 이런 일이 생기나\n\nscheduler는 requests 합계를 봅니다.',
+    '왜 deploy가 실패했는지 설명해 주십시오.',
     '**왜** 이렇게 했는지 설명합니다.',
-    '왜냐하면 캐시가 비었기 때문입니다.',
-    '## 왜곡된 값\n\n캐시를 비웁니다.',
+    '왜냐하면 cache가 비었기 때문입니다.',
+    '## 왜곡된 값\n\ncache를 비웁니다.',
     '> ## 왜\n> 다른 사람이 쓴 PR 설명입니다.',
     '`## 왜` 대신 `## 배경`이라고 씁니다.',
-    '| 질문 | 답 |\n| --- | --- |\n| 왜 | 캐시가 비어서입니다 |',
+    '| 질문 | 답 |\n| --- | --- |\n| 왜 | cache가 비어서입니다 |',
   ]) {
     assert.ok(!checkText(text, rules, 'doc').some(v => v.rule === 'translationese'), text);
   }
   /* 대신 쓸 이름은 `또는`으로 나눠 따로 인용해야 `및`과 `또는`이 무엇을 묶는지 헷갈리지 않습니다. */
-  assert.match(checkText('## 왜\n\n캐시가 비었습니다.', rules).find(v => v.rule === 'translationese').detail, /"문제 및 원인" 또는 "배경"처럼/);
+  assert.match(checkText('## 왜\n\ncache가 비었습니다.', rules).find(v => v.rule === 'translationese').detail, /"문제 및 원인" 또는 "배경"처럼/);
 });
 
 test('`translationese-headings`에 적은 낱말만 제목과 항목 이름에서 잡고 키가 없거나 값을 비운 규칙에서는 잡지 않는다', () => {
@@ -176,7 +175,7 @@ test('`translationese-headings`에 적은 낱말만 제목과 항목 이름에�
 });
 
 test('기본 규칙의 `literal-verbs`에는 `>`가 든 항목이 없다', () => {
-  /* 0.3.5까지의 검사기는 `literal-verbs`의 `목적어>동사` 항목을 `|`로 나눈 낱말 목록으로 읽습니다. 그러면 새 규칙 문서만 받은 프로젝트에서 `설정`, `성능` 같은 낱말에도 경고가 나옵니다. 그래서 이런 항목은 예전 검사기가 읽지 않는 `object-verbs`에 둡니다. */
+  /* 0.3.5까지의 검사기는 `literal-verbs`의 `목적어>동사` 항목을 `|`로 나눈 낱말 목록으로 읽습니다. 그러면 새 규칙 문서만 받은 프로젝트에서 `설정`, `성능` 같은 낱말에도 경고가 나옵니다. 따라서 이런 항목은 예전 검사기가 읽지 않는 `object-verbs`에 둡니다. */
   assert.ok(rules.objectVerbs.size > 0);
   assert.ok([...rules.literalVerbs.keys()].every(key => !key.includes('>')));
 });
@@ -234,7 +233,7 @@ test('기본 규칙에서는 `_workspace/` 아래의 작업 파일을 검사하�
   }
 });
 
-test('경고로 둘 규칙은 규칙 문서에서 정하고 앞서 파싱한 결과는 다음 파싱에 섞이지 않는다', () => {
+test('경고로 둘 규칙은 규칙 문서에서 정하고 앞서 parsing한 결과는 다음 parsing 결과에 섞이지 않는다', () => {
   const warn = parseRuleBlock('advisory-rules: translationese\ntranslationese-patterns: 를 통해=~해');
   const strict = parseRuleBlock('translationese-patterns: 를 통해=~해');
   assert.equal(blockingViolations(checkText('API를 통해 확인합니다.', warn)).length, 0);
@@ -242,7 +241,7 @@ test('경고로 둘 규칙은 규칙 문서에서 정하고 앞서 파싱한 결
   assert.deepEqual(strict.advisoryRules, []);
 });
 
-test('실제 모델로 평가할 때 답변이 빠지거나 중복되거나 제약을 어기면 통과라고 보고하지 않는다', () => {
+test('실제 model로 평가할 때 답변이 빠지거나 중복되거나 제약을 어기면 통과라고 보고하지 않는다', () => {
   assert.throws(() => answersOf('<answer id="a">응답</answer>', [{ id: 'a' }, { id: 'b' }]), /답변이 없거나 중복되었습니다: b/);
   assert.throws(() => answersOf('<answer id="a">첫째</answer><answer id="a">둘째</answer>', [{ id: 'a' }]), /답변이 없거나 중복되었습니다: a/);
   const score = assessAnswer({ id: 'a', text: '끝났습니다.' }, { must: ['API'], maxChars: 3, sentences: 2 });
@@ -259,32 +258,37 @@ test('실제 모델로 평가할 때 답변이 빠지거나 중복되거나 제�
   assert.deepEqual(assessAnswer({ text: '끝났습니다.' }, { must: [], maxChars: 100 }).forbidden, []);
 });
 
-test('저장된 평가 결과에서 프로필마다 항목을 세어 README에 옮길 표로 만든다', () => {
+test('저장된 평가 결과를 프로필마다 항목별로 집계해 README에 옮길 표로 만든다', () => {
   const rows = [
-    { profile: 'baseline', skills: [], costUsd: 0.04, seconds: 10, answers: [{ id: 'a', text: '확인했어요. ✅' }] },
-    { profile: 'baseline', skills: [], costUsd: 0.06, seconds: 12, hookResponses: [{ event: 'Stop', output: 'JSON이 아닌 출력', exitCode: 0 }], answers: [{ id: 'b', text: '분류·정리를 마쳤습니다.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' }] },
-    { profile: 'installed', skills: ['korean-rewrite'], costUsd: 0.08, seconds: 15, hookResponses: [{ event: 'Stop', output: '{"decision":"block","reason":"다시 쓰십시오."}', exitCode: 0 }, { event: 'Stop', output: '', exitCode: 0 }], answers: [{ id: 'a', text: '확인했습니다.' }] },
-    { profile: 'installed', skills: ['korean-rewrite'], costUsd: 0.1, seconds: 17, hookResponses: [{ event: 'PreToolUse', output: '{"decision":"block"}', exitCode: 0 }], answers: [{ id: 'b', text: '`확인해요`라는 문장을 지웠습니다.' }] },
+    { profile: 'baseline', skills: [], costUsd: 0.04, seconds: 10, answers: [{ id: 'a', text: '서버를 확인했어요. ✅' }] },
+    { profile: 'baseline', skills: [], costUsd: 0.06, seconds: 12, hookResponses: [{ event: 'Stop', output: 'JSON이 아닌 출력', exitCode: 0 }], answers: [{ id: 'b', text: '이슈 분류·정리를 마쳤습니다.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' }] },
+    { profile: 'installed', skills: ['korean-rewrite'], costUsd: 0.08, seconds: 15, hookResponses: [{ event: 'Stop', output: '{"decision":"block","reason":"다시 쓰십시오."}', exitCode: 0 }, { event: 'Stop', output: '', exitCode: 0 }], answers: [{ id: 'a', text: '배포를 확인했습니다.' }] },
+    { profile: 'installed', skills: ['korean-rewrite'], costUsd: 0.1, seconds: 17, hookResponses: [{ event: 'PreToolUse', output: '{"decision":"block"}', exitCode: 0 }], answers: [{ id: 'b', text: '`확인해요`와 `캐시`라는 낱말을 지웠습니다.' }] },
   ];
   const summary = summarize(rows, rules);
-  assert.deepEqual(summary.baseline, { answers: 2, skill: 0, rewritten: 0, errors: 2, register: 1, emoji: 1, middot: 1, attribution: 1, chars: [...rows[0].answers[0].text].length + [...rows[1].answers[0].text].length, costUsd: 0.1, seconds: 22,
-    firstAnswers: 2, firstCostUsd: 0.1, repeatAnswers: 0, repeatCostUsd: 0 });
+  assert.deepEqual(summary.baseline, { answers: 2, skill: 0, rewritten: 0, errors: 2, register: 1, transliteration: 2, looseTranslation: 0, emoji: 1, middot: 1, attribution: 1,
+    chars: [...rows[0].answers[0].text].length + [...rows[1].answers[0].text].length, costUsd: 0.1, seconds: 22, firstAnswers: 2, firstCostUsd: 0.1, repeatAnswers: 0, repeatCostUsd: 0 });
   assert.equal(summary.installed.skill, 2);
-  assert.equal(summary.installed.rewritten, 1, 'Stop hook이 다시 쓰게 한 기록만 셉니다');
-  assert.equal(summary.installed.errors, 0, '인라인 코드로 감싼 해요체 예문은 세지 않습니다');
+  assert.equal(summary.installed.rewritten, 1, 'Stop hook이 다시 쓰게 한 기록만 집계합니다');
+  assert.equal(summary.installed.errors, 0, '인라인 코드로 감싼 해요체 예문은 오류로 집계하지 않습니다');
   assert.equal(summary.installed.register, 0);
+  /* 검사기는 답변에 든 IT 용어의 음차와 번역어를 경고로만 알립니다. 따라서 음차나 번역어가 든 답변 수는 오류를 찾은 답변 수와 따로 집계합니다. */
+  assert.equal(summary.installed.transliteration, 0, '인라인 코드로 감싼 음차만 든 답변은 집계하지 않습니다');
+  assert.equal(summary.installed.looseTranslation, 1);
   const table = formatSummary(summary);
   assert.match(table, /^\| 항목 \| 이 도구가 없는 프로젝트 \| 이 도구를 설치한 프로젝트 \|$/m);
   assert.match(table, /^\| skill을 거친 답변 \| 2개 중 0개 \| 2개 중 2개 \|$/m);
   assert.match(table, /^\| Stop hook이 다시 쓰게 한 답변 \| 2개 중 0개 \| 2개 중 1개 \|$/m);
   assert.match(table, /^\| 검사기가 오류를 찾은 답변 \| 2개 중 2개 \| 2개 중 0개 \|$/m);
+  assert.match(table, /^\| 검사기가 IT 용어의 한글 음차를 찾은 답변 \| 2개 중 2개 \| 2개 중 0개 \|$/m);
+  assert.match(table, /^\| 검사기가 IT 용어의 번역어를 찾은 답변 \| 2개 중 0개 \| 2개 중 1개 \|$/m);
   assert.match(table, /^\| 답변 하나에 든 평균 비용 \| 0\.050달러 \| 0\.090달러 \|$/m);
   assert.doesNotMatch(table, /처음 보낸 요청|다시 보냈을 때/, '같은 요청을 다시 보낸 기록이 없으면 비용을 나누지 않습니다');
   assert.match(table, /^\| 답변 하나를 받는 데 걸린 평균 시간 \| 11\.0초 \| 16\.0초 \|$/m);
 });
 
 test('같은 요청을 다시 보낸 결과가 있으면 처음 보낸 요청과 다시 보낸 요청의 비용을 나눠 표에 싣는다', () => {
-  /* 같은 요청을 다시 보내면 캐시에 저장한 입력을 읽으므로 비용이 줄어야 합니다. 평가 도중 Claude Code의 시스템 프롬프트가 바뀌면 캐시를 쓰지 못해 비용이 줄지 않습니다. */
+  /* 같은 요청을 다시 보내면 cache에 저장한 입력을 읽으므로 비용이 줄어야 합니다. 평가 도중 Claude Code의 system prompt가 바뀌면 cache를 쓰지 못해 비용이 줄지 않습니다. */
   const rows = [
     { profile: 'baseline', run: 1, skills: [], costUsd: 0.04, seconds: 10, answers: [{ id: 'a', text: '확인했습니다.' }] },
     { profile: 'baseline', run: 2, skills: [], costUsd: 0.01, seconds: 9, answers: [{ id: 'a', text: '확인했습니다.' }] },
@@ -300,7 +304,7 @@ test('같은 요청을 다시 보낸 결과가 있으면 처음 보낸 요청과
   assert.match(partial, /^\| 같은 요청을 다시 보냈을 때 답변 하나에 든 평균 비용 \| 0\.010달러 \| - \|$/m);
 });
 
-test('평가 결과를 셀 때 답변이 없는 프로필과 잘못된 입력을 그대로 표에 싣지 않고 프로필 이름이 `__proto__`여도 다른 객체를 건드리지 않는다', () => {
+test('평가 결과를 집계할 때 답변이 없는 프로필과 잘못된 입력을 그대로 표에 싣지 않고 프로필 이름이 `__proto__`여도 다른 객체를 건드리지 않는다', () => {
   const summary = summarize([{ profile: 'installed', costUsd: 0.1, seconds: 3, answers: [] }], rules);
   assert.match(formatSummary(summary), /^\| 답변 하나에 든 평균 비용 \| - \|$/m);
   assert.throws(() => formatSummary(summarize([], rules)), /답변이 없습니다/);
@@ -310,20 +314,20 @@ test('평가 결과를 셀 때 답변이 없는 프로필과 잘못된 입력을
   assert.equal(({}).answers, undefined, '다른 객체에 속성이 생기면 안 됩니다');
 });
 
-test('세션마다 시스템 프롬프트에 들어가는 작성 지침의 분량을 제한한다', () => {
+test('session마다 system prompt에 들어가는 output style의 분량을 제한한다', () => {
   const style = readFileSync(new URL('../output-styles/korean-style.md', import.meta.url), 'utf8');
   assert.ok([...style].length <= 1600, '긴 설명은 skill이나 docs/ 아래 문서에 둡니다');
   assert.match(style, /keep-coding-instructions: true/);
 });
 
-test('작성 지침에는 처음부터 한국어로 생각하라는 지시와 생성 표시를 넣지 말라는 지시가 들어 있다', () => {
-  /* 작성 지침이 영어이거나 어느 언어로 생각할지 적혀 있지 않으면 Claude는 영어로 구상한 뒤 한국어로 옮기기 쉽습니다. */
+test('output style에는 처음부터 한국어로 생각하라는 지시와 생성 표시를 넣지 말라는 지시가 들어 있다', () => {
+  /* output style이 영어이거나 어느 언어로 생각할지 적혀 있지 않으면 Claude는 영어로 구상한 뒤 한국어로 옮기기 쉽습니다. */
   const style = readFileSync(new URL('../output-styles/korean-style.md', import.meta.url), 'utf8');
   assert.match(style, /한국어로 생각합니다/);
   assert.match(style, /Generated with \[Claude Code\]/);
 });
 
-test('skill에는 사용자가 알려 온 영어식 표현을 고치라는 지시가 들어 있다', () => {
+test('skill에는 사용자가 알려 온 번역투를 고치라는 지시가 들어 있다', () => {
   /* 사용자는 Claude가 항목을 새로 넣는 일을 `더하다`로, 지표를 구하는 일을 `재다`로 쓴 답변을 보았다고 알려 왔습니다. `반랙`, `코드 밖에서 만든`, 항목 이름에 할 일을 몰아넣고 콜론 뒤에 누가 하는지만 쓴 목록도 보았다고 알려 왔습니다. 검사기는 이 가운데 일부만 잡으므로 지시가 빠지면 안 됩니다. */
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(skill, /영어 `add`, `measure`를 옮긴 `더하다`, `재다`/);
@@ -350,7 +354,7 @@ test('skill에는 영어 `Why`를 옮긴 `왜` 제목을 그 절에 담은 내�
 });
 
 test('skill에는 흔한 한자어 동사는 그대로 쓰고 프로젝트 지침에 든 고칠 표현은 따라 쓰지 말라는 지시가 들어 있다', () => {
-  /* 한때 skill의 한자어 항목 예시는 `호출`, `제거`까지 고유어로 바꾼 문장이었습니다. 그 무렵 이 도구를 설치한 세션에서 Claude는 `더하다`, `재다`를 자주 썼습니다. 이 예시가 원인인지는 확인하지 못했습니다. */
+  /* 한때 skill의 한자어 항목 예시는 `호출`, `제거`까지 고유어로 바꾼 문장이었습니다. 그 무렵 이 도구를 설치한 프로젝트에서 Claude는 `더하다`, `재다`를 자주 썼습니다. 이 예시가 원인인지는 확인하지 못했습니다. */
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(skill, /개발 문서에서 흔히 쓰는 한자어 동사는 그대로 씁니다/);
   assert.doesNotMatch(skill, /같은 함수를 부르던 코드를 지워/);
@@ -358,8 +362,15 @@ test('skill에는 흔한 한자어 동사는 그대로 쓰고 프로젝트 지�
   assert.match(skill, /프로젝트 지침, 기존 문서, 앞선 답변에 아래 고칠 표현이 있어도 표현을 맞추려고 따라 쓰지 않습니다/);
 });
 
-test('작성 지침과 skill에는 독자에게 필요한 내용만 고르고 공개하는 글에 내부 정보와 개인 정보를 넣지 말라는 지시가 들어 있다', () => {
-  /* 이 도구를 설치한 프로젝트에서도 Claude는 개인정보 처리방침에 사이트 주인의 실명과 개발 서버 주소를 넣었습니다. 검사기는 이런 내용을 잡지 못하므로 지시가 빠지면 안 됩니다. */
+test('skill은 사용자나 프로젝트 지침이 IT 용어를 한글로 적으라고 요구하면 그 요구를 따르라고 하고 검사기를 따르라고 하지 않는다', () => {
+  /* 규칙 문서에서 IT 용어 표를 고쳐도 skill 지시는 바뀌지 않습니다. `required-spelling`은 답변에만 적용되므로 파일과 commit 메시지에서는 한글 표기를 요구하지 못합니다. */
+  const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
+  assert.match(skill, /사용자나 `CLAUDE\.md` 같은 프로젝트 지침이 IT 용어를 한글로 적으라고 요구하면 그 요구를 따릅니다/);
+  assert.doesNotMatch(skill, /검사기가 다른 표기를 요구하면 검사기를 따릅니다/);
+});
+
+test('output style과 skill에는 독자에게 필요한 내용만 고르고 공개하는 글에 내부 정보와 개인 정보를 넣지 말라는 지시가 들어 있다', () => {
+  /* 이 도구를 설치한 프로젝트에서도 Claude는 개인정보 처리방침에 사이트 주인의 실명과 개발 server 주소를 넣었습니다. 검사기는 이런 내용을 잡지 못하므로 지시가 빠지면 안 됩니다. */
   const style = readFileSync(new URL('../output-styles/korean-style.md', import.meta.url), 'utf8');
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(style, /누가 읽는지 정하고/);

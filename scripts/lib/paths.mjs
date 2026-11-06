@@ -1,28 +1,28 @@
-/* 프로젝트 루트와 규칙 문서를 찾습니다. */
+/* 프로젝트 root directory와 규칙 문서를 찾습니다. */
 import { existsSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/* 이 도구를 설치하면 프로젝트 안에 생기는 디렉터리입니다. */
+/* 이 도구를 설치하면 프로젝트 안에 생기는 directory입니다. */
 export const INSTALLED_DIR = '.korean-style';
 
-/* 프로젝트 루트를 찾습니다. */
+/* 프로젝트 root directory를 찾습니다. */
 export function projectRoot() {
   const named = process.env.CLAUDE_PROJECT_DIR;
   if (typeof named === 'string' && named.length > 0) return resolve(named);
   const here = dirname(fileURLToPath(import.meta.url));
   const twoUp = resolve(here, '..', '..');
-  /* 설치 디렉터리 안에 있으면 한 단계 더 올라갑니다. */
+  /* 설치 directory 안에 있으면 한 단계 더 올라갑니다. */
   return twoUp.split(sep).pop() === INSTALLED_DIR ? resolve(twoUp, '..') : twoUp;
 }
 
-/* 이 도구의 루트 디렉터리입니다. */
+/* 이 도구의 root directory입니다. */
 export function toolRoot() {
   const here = dirname(fileURLToPath(import.meta.url));
   return resolve(here, '..', '..');
 }
 
-/* 인자로 받은 모듈을 명령줄에서 직접 실행했는지 봅니다. */
+/* argument로 받은 module을 명령줄에서 직접 실행했는지 봅니다. */
 export function isEntryPoint(metaUrl) {
   const entry = process.argv[1];
   if (entry === undefined) return false;

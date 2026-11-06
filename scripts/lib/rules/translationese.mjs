@@ -1,5 +1,6 @@
-/* 영어식 표현을 찾는 규칙입니다. */
+/* 번역투를 찾는 규칙입니다. */
 import { lineOf } from '../text.mjs';
+import { quoteChoices } from './terms.mjs';
 
 /* `@latin:` 규칙에서 목적어로 보는 영어 낱말입니다. */
 const LATIN_WORD = "[A-Za-z][A-Za-z0-9'’]*(?:[-.][A-Za-z0-9]+)*";
@@ -29,8 +30,31 @@ function alternation(left) {
     .join('|');
 }
 
+/* 대신 쓸 말을 안내합니다. 마침표로 끝나는 문장이면 그 문장을 그대로 보여 줍니다. `또는`으로 나눈 말이 여럿이면 따로 인용하고 문맥에 맞는 말을 고르게 합니다. */
 function advise(right) {
-  return right.length > 0 ? ` ${JSON.stringify(right)}처럼 고칠 수도 있습니다.` : '';
+  if (right.length === 0) return '';
+  if (right.endsWith('.')) return ` ${right}`;
+  const choices = right.split(/\s+또는\s+/u).filter((choice) => choice.trim().length > 0);
+  if (choices.length < 2) return ` ${quoteChoices(right)}처럼 고칠 수도 있습니다.`;
+  return ` ${choices.map((choice) => JSON.stringify(choice.trim())).join(', ')} 가운데 문맥에 맞는 말로 고칠 수도 있습니다.`;
+}
+
+/* `translationese-exempt`에 적은 구절이 차지하는 구간입니다. */
+function exemptSpans(text, phrases) {
+  const spans = [];
+  for (const phrase of phrases ?? []) {
+    if (phrase.length === 0) continue;
+    for (let at = text.indexOf(phrase); at !== -1; at = text.indexOf(phrase, at + 1)) spans.push([at, at + phrase.length]);
+  }
+  return spans;
+}
+
+/* 구절이 나온 자리 가운데 예외 구절 안에 들지 않은 첫 자리를 돌려줍니다. 없으면 -1입니다. */
+function firstOutside(text, wrong, spans) {
+  for (let at = text.indexOf(wrong); at !== -1; at = text.indexOf(wrong, at + 1)) {
+    if (!spans.some(([from, to]) => from <= at && at + wrong.length <= to)) return at;
+  }
+  return -1;
 }
 
 /* 굵은 글씨 표시입니다. */
@@ -85,13 +109,14 @@ function adviseNames(right) {
 export function translationeseViolations(text, rules) {
   const out = [];
 
-  /* 1) 영어식 구절입니다. */
+  /* 1) 번역투 구절입니다. `translationese-exempt`에 적은 구절 안에 든 자리는 건너뜁니다. 그래서 근거를 뜻하는 `법에 의해`는 잡지 않습니다. */
+  const spans = exemptSpans(text, rules.translationeseExempt);
   for (const [wrong, right] of rules.translationesePatterns) {
-    const idx = text.indexOf(wrong);
+    const idx = firstOutside(text, wrong, spans);
     if (idx === -1) continue;
     out.push({
       rule: 'translationese',
-      detail: `영어식 표현일 수 있습니다: ${JSON.stringify(wrong)}.${advise(right)}`,
+      detail: `번역투일 수 있습니다: ${JSON.stringify(wrong)}.${advise(right)}`,
       line: lineOf(text, idx),
     });
   }

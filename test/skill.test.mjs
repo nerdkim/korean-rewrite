@@ -1,4 +1,4 @@
-/* Claude가 한국어를 쓰는 요청마다 korean-rewrite skill을 부르게 하는 hook 테스트입니다. */
+/* Claude가 한국어를 쓰기 전에 이 session에서 korean-rewrite skill을 불렀는지 확인하는 hook test입니다. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -15,6 +15,7 @@ import {
   agentTranscriptPath,
   currentTurn,
   hangulCount,
+  loadedSkill,
   needsSkill,
   needsWriter,
   skillRequest,
@@ -29,7 +30,7 @@ const RULES = loadRules(join(ROOT, 'docs', 'rules.md'));
 const scratch = () => mkdtempSync(join(tmpdir(), 'korean-style-skill-'));
 
 /* 한글이 기준(20자)보다 많고 검사기가 찾을 오류도 없는 문장입니다. */
-const KOREAN = '설치 스크립트를 다시 실행한 뒤 Claude Code를 다시 시작하면 새 설정이 적용됩니다.';
+const KOREAN = '설치 script를 다시 실행한 뒤 Claude Code를 다시 시작하면 새 설정이 적용됩니다.';
 
 const prompt = (text) => ({ type: 'user', message: { content: text } });
 const said = (text) => ({ type: 'assistant', message: { content: [{ type: 'text', text }] } });
@@ -38,13 +39,18 @@ const result = (content) => ({ type: 'user', message: { content: [{ type: 'tool_
 const skillBody = () => ({ type: 'user', isMeta: true, message: { content: [{ type: 'text', text: 'Base directory for this skill: /tmp' }] } });
 const SKILL_CALL = [called({ skill: 'korean-rewrite' }), result('Launching skill: korean-rewrite'), skillBody()];
 
+/* 대화를 압축한 지점을 표시하는 기록과 압축한 뒤 Claude Code가 skill 본문을 다시 넣은 첨부입니다. 이 기록 형식은 Claude Code 2.1.310에서 확인했습니다. */
+const COMPACTED = { type: 'system', subtype: 'compact_boundary' };
+const restored = (name) =>
+  ({ type: 'attachment', attachment: { type: 'invoked_skills', skills: [{ name, path: `projectSettings:${name}`, content: 'Base directory for this skill: /tmp' }] } });
+
 /* 한글이 작성 agent 기준(200자)보다 많고 검사기가 찾을 오류도 없는 글입니다. */
 const LONG_KOREAN = [
   KOREAN,
-  '규칙 문서는 저장소에 커밋하므로 팀원이 설치 명령을 한 번 실행하면 같은 규칙이 적용됩니다.',
-  '검사기는 모델을 부르지 않으므로 같은 글을 같은 규칙으로 검사하면 결과가 늘 같습니다.',
+  '규칙 문서는 repository에 commit하므로 팀원이 설치 명령을 한 번 실행하면 같은 규칙이 적용됩니다.',
+  '검사기는 model을 부르지 않으므로 같은 글을 같은 규칙으로 검사하면 결과가 늘 같습니다.',
   '경고는 문맥에 맞으면 그대로 두어도 되고 오류만 고치면 hook이 쓰기를 막지 않습니다.',
-  '커밋 메시지는 Git의 commit-msg hook도 검사하므로 사람이 직접 하는 커밋에도 같은 규칙이 적용됩니다.',
+  'commit 메시지는 Git의 commit-msg hook도 검사하므로 사람이 직접 하는 commit에도 같은 규칙이 적용됩니다.',
   '설치한 뒤에는 doctor를 실행해 hook, skill, 작성 agent가 제자리에 있는지 확인합니다.',
   '작성 agent는 메모에 적힌 사실만으로 글을 쓰고 완성한 글만 돌려줍니다.',
 ].join(' ');
@@ -98,8 +104,8 @@ test('이번 요청은 사용자가 직접 보낸 마지막 메시지 뒤에서 
   assert.ok(usedSkill(entries, 'korean-rewrite'), 'skill 본문이 든 줄을 요청의 시작으로 보면 skill 호출을 놓칩니다');
 });
 
-test('백그라운드 agent가 끝났다는 알림은 이번 요청의 시작으로 보지 않는다', () => {
-  /* 작성 agent를 백그라운드로 부르면 결과는 `origin.kind`가 `task-notification`인 사용자 메시지로 돌아옵니다. 이 알림을 요청의 시작으로 보면 agent를 부른 기록이 이전 요청에 남습니다. 그러면 Claude가 결과를 받아 글을 쓸 때 hook이 다시 막습니다. */
+test('background agent가 끝났다는 알림은 이번 요청의 시작으로 보지 않는다', () => {
+  /* 작성 agent를 background로 부르면 결과는 `origin.kind`가 `task-notification`인 사용자 메시지로 돌아옵니다. 이 알림을 요청의 시작으로 보면 agent를 부른 기록이 이전 요청에 남습니다. 그러면 Claude가 결과를 받아 글을 쓸 때 hook이 다시 막습니다. */
   const notice = { type: 'user', origin: { kind: 'task-notification' }, message: { content: '<task-notification>작업을 마쳤습니다.</task-notification>' } };
   const path = transcript([prompt('README를 고쳐 주십시오'), ...SKILL_CALL, ...WRITER_CALL, notice]);
   assert.ok(!needsWriter(context(path, { text: LONG_KOREAN })));
@@ -115,9 +121,24 @@ test('이름이 같은 skill을 부른 경우만 인정한다', () => {
   assert.ok(!usedSkill([said('korean-rewrite skill을 쓰겠습니다.')], 'korean-rewrite'), '말로만 언급한 것은 호출이 아닙니다');
 });
 
-test('이번 요청에서 skill을 부르지 않고 한국어를 쓰면 skill을 요구한다', () => {
+test('이 session에서 skill을 부르지 않고 한국어를 쓰면 skill을 요구한다', () => {
   assert.ok(needsSkill(context(transcript([prompt('질문입니다'), said('살펴보겠습니다.')]))));
   assert.ok(!needsSkill(context(transcript([prompt('질문입니다'), ...SKILL_CALL]))));
+});
+
+test('같은 session의 앞 요청에서 skill을 불렀으면 이번 요청에서 다시 부르지 않아도 skill을 요구하지 않는다', () => {
+  /* Claude Code 2.1.310에서는 Claude가 이미 불러온 skill을 다시 부르면 본문이 다시 들어가지 않고 `Skill /korean-rewrite is already loaded above; instructions unchanged.`라는 안내가 화면에 남습니다. 요청마다 다시 부르게 하면 이 안내가 요청마다 남습니다. */
+  const path = transcript([prompt('지난 질문입니다'), ...SKILL_CALL, said('지난 답변입니다'), prompt('이번 질문입니다'), said('살펴보겠습니다.')]);
+  assert.ok(loadedSkill(path, 'korean-rewrite'));
+  assert.ok(!needsSkill(context(path)));
+});
+
+test('대화를 압축했으면 압축 지점 뒤에서 skill을 불렀거나 Claude Code가 skill 본문을 다시 넣었을 때만 부른 것으로 본다', () => {
+  const before = [prompt('지난 질문입니다'), ...SKILL_CALL, said('지난 답변입니다')];
+  assert.ok(needsSkill(context(transcript([...before, COMPACTED, prompt('이번 질문입니다')]))), '압축하기 전에 부른 skill의 본문은 Claude에게 남지 않으므로 인정하지 않습니다');
+  assert.ok(!needsSkill(context(transcript([...before, COMPACTED, restored('korean-rewrite'), prompt('이번 질문입니다')]))));
+  assert.ok(needsSkill(context(transcript([...before, COMPACTED, restored('korean-style'), prompt('이번 질문입니다')]))), '다른 skill의 본문만 다시 들어왔으면 인정하지 않습니다');
+  assert.ok(!needsSkill(context(transcript([...before, COMPACTED, prompt('이번 질문입니다'), ...SKILL_CALL]))));
 });
 
 test('한글이 기준보다 적은 글이나 영어로만 쓴 글에는 skill을 요구하지 않는다', () => {
@@ -127,7 +148,7 @@ test('한글이 기준보다 적은 글이나 영어로만 쓴 글에는 skill�
   assert.ok(!needsSkill(context(path, { text: 'The installer finished and every hook is in place.' })));
 });
 
-test('skill이 설치되지 않았거나 규칙에서 꺼져 있거나 대화 기록을 읽을 수 없으면 skill을 요구하지 않는다', () => {
+test('skill이 설치되지 않았거나 규칙에서 꺼져 있거나 transcript를 읽을 수 없으면 skill을 요구하지 않는다', () => {
   const path = transcript([prompt('질문입니다')]);
   assert.ok(!needsSkill(context(path, { projectRoot: scratch() })), 'skill 파일이 없는 프로젝트입니다');
   assert.ok(!needsSkill(context(path, { rules: { ...RULES, writingSkill: '' } })));
@@ -136,31 +157,41 @@ test('skill이 설치되지 않았거나 규칙에서 꺼져 있거나 대화 �
 
 test('같은 요청에서 정해 둔 횟수만큼 막았으면 더 막지 않는다', () => {
   /* Skill 도구를 쓸 수 없는 환경에서 끝없이 막히는 일을 막습니다. */
-  /* hook이 실제로 막을 때 쓰는 문구로 대화 기록을 만듭니다. 막은 횟수를 셀 때 찾는 문구가 이 문구와 달라지면 이 테스트가 실패합니다. */
+  /* hook이 실제로 막을 때 쓰는 문구로 transcript를 만듭니다. 막은 횟수를 집계할 때 찾는 문구가 이 문구와 달라지면 이 test가 실패합니다. */
   const denied = Array.from({ length: MAX_SKILL_DENIALS }, () => result(skillRequest('korean-rewrite', '다시 쓰십시오.')));
   assert.ok(needsSkill(context(transcript([prompt('질문입니다'), ...denied.slice(1)]))));
   assert.ok(!needsSkill(context(transcript([prompt('질문입니다'), ...denied]))));
 });
 
-test('subagent가 쓸 때는 그 subagent의 대화 기록에서 skill 호출을 찾는다', () => {
+test('subagent가 쓸 때는 그 subagent의 transcript에서 skill 호출을 찾는다', () => {
   const dir = scratch();
   const main = transcript([prompt('질문입니다'), ...SKILL_CALL], join(dir, 'session.jsonl'));
   const agentPath = agentTranscriptPath(main, 'a1b2c3');
   assert.equal(agentPath, join(dir, 'session', 'subagents', 'agent-a1b2c3.jsonl'));
   transcript([prompt('subagent에게 준 작업입니다')], agentPath);
-  assert.ok(needsSkill(context(main, { agentId: 'a1b2c3' })), '메인 세션에서 부른 skill은 subagent에게 전해지지 않습니다');
+  assert.ok(needsSkill(context(main, { agentId: 'a1b2c3' })), 'main session에서 부른 skill은 subagent에게 전해지지 않습니다');
   transcript([prompt('subagent에게 준 작업입니다'), ...SKILL_CALL], agentPath);
   assert.ok(!needsSkill(context(main, { agentId: 'a1b2c3' })));
-  assert.equal(agentTranscriptPath(main, '../x'), null, 'subagents 디렉터리 밖을 가리킬 수 있는 id는 쓰지 않습니다');
+  assert.equal(agentTranscriptPath(main, '../x'), null, 'subagents directory 밖을 가리킬 수 있는 id는 쓰지 않습니다');
 });
 
-test('프롬프트마다 korean-rewrite skill을 먼저 부르라고 알린다', () => {
+test('이 session에서 아직 부르지 않았으면 prompt마다 korean-rewrite skill을 먼저 부르라고 알린다', () => {
   const out = runHook('userprompt.mjs', { prompt: '설치 안내를 써 주십시오' });
   assert.equal(out.hookSpecificOutput.hookEventName, 'UserPromptSubmit');
-  assert.match(out.hookSpecificOutput.additionalContext, /Skill 도구로 korean-rewrite skill/);
+  assert.match(out.hookSpecificOutput.additionalContext, /먼저 Skill 도구로 korean-rewrite skill/);
+  const first = transcript([prompt('설치 안내를 써 주십시오')]);
+  assert.match(runHook('userprompt.mjs', { prompt: '설치 안내를 써 주십시오', transcript_path: first }).hookSpecificOutput.additionalContext, /먼저 Skill 도구로/);
 });
 
-test('`writing-skill`을 비운 규칙에서는 프롬프트에 아무것도 덧붙이지 않는다', () => {
+test('이 session에서 이미 skill을 불렀으면 prompt를 보낼 때 다시 부르라고 알리지 않는다', () => {
+  const path = transcript([prompt('지난 질문입니다'), ...SKILL_CALL, said('지난 답변입니다'), prompt('이번 질문입니다')]);
+  const reminder = runHook('userprompt.mjs', { prompt: '이번 질문입니다', transcript_path: path }).hookSpecificOutput.additionalContext;
+  assert.doesNotMatch(reminder, /먼저 Skill 도구로/);
+  assert.match(reminder, /korean-rewrite skill을 이 session에서 이미 불렀으므로 Skill 도구로 다시 부르지 마십시오/);
+  assert.match(reminder, /구상할 때부터 한국어로 생각하고/);
+});
+
+test('`writing-skill`을 비운 규칙에서는 prompt에 아무것도 덧붙이지 않는다', () => {
   const dir = scratch();
   const rules = join(dir, 'rules.md');
   writeFileSync(rules, '```korean-style-rules\nregister: 다나까체\nwriting-skill:\n```\n', 'utf-8');
@@ -187,10 +218,10 @@ test('영어 문서와 프로젝트 밖의 파일은 skill 없이도 쓸 수 있
   assert.equal(runHook('pretooluse.mjs', outside), null);
 });
 
-test('skill을 부르지 않고 한국어 커밋 메시지로 커밋하면 막는다', () => {
+test('skill을 부르지 않고 한국어 commit 메시지로 commit하면 막는다', () => {
   const command = `git commit -m "docs: 설치 안내 정리" -m "${KOREAN}"`;
   const denied = runHook('pretooluse.mjs', { tool_name: 'Bash', tool_input: { command }, transcript_path: transcript([prompt('커밋해 주십시오')]) });
-  assert.ok(denied.hookSpecificOutput.permissionDecisionReason.includes('다시 커밋하십시오'));
+  assert.ok(denied.hookSpecificOutput.permissionDecisionReason.includes('다시 commit하십시오'));
   const allowed = runHook('pretooluse.mjs', { tool_name: 'Bash', tool_input: { command }, transcript_path: transcript([prompt('커밋해 주십시오'), ...SKILL_CALL]) });
   assert.equal(allowed, null);
 });
@@ -255,7 +286,7 @@ test('`needsWriter`는 한글이 200자 이상인 글을 쓰는데 이번 요청
   assert.ok(!needsWriter(writing(skipped, { agentId: 'a1b2c3' })), 'subagent가 쓰는 글');
   assert.ok(!needsWriter(writing(skipped, { rules: { ...RULES, writerAgent: '' } })), '`writer-agent`를 비운 규칙');
   assert.ok(!needsWriter(writing(skipped, { minHangul: 0 })), '기준이 0인 글');
-  /* hook이 실제로 막을 때 쓰는 문구로 대화 기록을 만듭니다. 막은 횟수를 셀 때 찾는 문구가 이 문구와 달라지면 이 테스트가 실패합니다. */
+  /* hook이 실제로 막을 때 쓰는 문구로 transcript를 만듭니다. 막은 횟수를 집계할 때 찾는 문구가 이 문구와 달라지면 이 test가 실패합니다. */
   const denied = Array.from({ length: MAX_WRITER_DENIALS }, () => result(writerRequest('korean-writer', 200, '다시 쓰십시오.')));
   assert.ok(denied.every((entry) => entry.message.content[0].content.includes(WRITER_MISSING)));
   assert.ok(needsWriter(writing(transcript([prompt('README를 고쳐 주십시오'), ...denied.slice(1)]))));
@@ -303,7 +334,7 @@ test('Stop hook은 `writer-agent-answer-min-hangul`이 0이면 답변을 agent�
 test('UserPromptSubmit hook은 agent 파일이 있을 때만 안내에 agent 이름과 기준 길이를 넣는다', () => {
   /* agent 파일이 있으면 안내에 agent 이름과 기준 길이가 들어가고 없으면 들어가지 않습니다. 답변 기준이 0이면 답변은 안내에 넣지 않습니다. 안내는 돌려받은 글에서 `빠진 정보:` 줄을 빼라고도 알립니다. */
   const out = runHook('userprompt.mjs', { prompt: '설치 안내를 써 주십시오' });
-  assert.match(out.hookSpecificOutput.additionalContext, /파일, 커밋 메시지, PR과 이슈에 올리는 글은 한 번에 쓰는 한글이 200자 이상이면 직접 쓰지 말고 Agent 도구로 korean-writer에게/);
+  assert.match(out.hookSpecificOutput.additionalContext, /파일, commit 메시지, PR과 issue에 올리는 글은 한 번에 쓰는 한글이 200자 이상이면 직접 쓰지 말고 Agent 도구로 korean-writer에게/);
   assert.match(out.hookSpecificOutput.additionalContext, /`빠진 정보:` 줄은 빼고/);
   assert.doesNotMatch(out.hookSpecificOutput.additionalContext, /답변은 한글이/);
   assert.doesNotMatch(skillReminder('korean-rewrite'), /korean-writer/);
@@ -311,7 +342,7 @@ test('UserPromptSubmit hook은 agent 파일이 있을 때만 안내에 agent 이
 });
 
 test('PreToolUse hook은 질문, 계획, 소스 파일의 문자열에는 작성 agent를 요구하지 않고 소스 파일의 긴 주석에는 요구한다', () => {
-  /* 작성 agent는 대화에 쓰는 글과 코드를 맡지 않습니다. 그래서 한글이 200자 이상인 계획과 질문도 skill만 부르면 막지 않습니다. 소스 파일에서는 주석의 한글만 셉니다. */
+  /* 작성 agent는 대화에 쓰는 글과 코드를 맡지 않습니다. 따라서 한글이 200자 이상인 계획과 질문도 skill만 부르면 막지 않습니다. 소스 파일에서는 주석의 한글만 계산에 넣습니다. */
   const turn = transcript([prompt('계획을 세워 주십시오'), ...SKILL_CALL]);
   assert.equal(runHook('pretooluse.mjs', { tool_name: 'ExitPlanMode', tool_input: { plan: LONG_KOREAN }, transcript_path: turn }), null);
   assert.equal(runHook('pretooluse.mjs', { tool_name: 'AskUserQuestion', tool_input: { questions: [{ question: `${LONG_KOREAN} 어떻게 하시겠습니까?`, header: '확인', options: [{ label: '진행', description: '진행합니다.' }, { label: '중단', description: '중단합니다.' }], multiSelect: false }] }, transcript_path: turn }), null);

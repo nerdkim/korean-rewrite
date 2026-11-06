@@ -9,6 +9,8 @@ const LIST_KEYS = {
   'advisory-rules': 'advisoryRules',
   /* hook이 Claude에게 알릴 경고 규칙입니다. Claude가 파일을 쓰거나 고칠 때 바뀐 문단에서 이 규칙에 걸리는 표현이 새로 생기면 hook이 알립니다. */
   'review-rules': 'reviewRules',
+  /* 도구에 넘기는 글과 답변에서만 경고로 낮출 규칙입니다. 파일, commit 메시지, PR과 issue에 올리는 글에서는 오류로 둡니다. */
+  'chat-advisory-rules': 'chatAdvisoryRules',
   'banned-char': 'bannedChar',
   'banned-address': 'bannedAddress',
   'imperative-endings': 'imperativeEndings',
@@ -31,15 +33,29 @@ const LIST_KEYS = {
   'plural-quantifiers': 'pluralQuantifiers',
   /* 직역 동사 규칙에서 예외로 두는 영어 목적어입니다. */
   'literal-verb-exempt': 'literalVerbExempt',
-  /* Claude Code가 커밋 메시지와 PR 설명에 붙이는 생성 표시입니다. */
+  /* Claude Code가 commit 메시지와 PR 설명에 붙이는 생성 표시입니다. */
   'banned-attribution': 'bannedAttribution',
+  /* 일반 독자가 읽는 글로 볼 경로 pattern입니다. 이 경로의 파일에는 IT 용어 표 규칙을 적용하지 않습니다. */
+  'general-reader-globs': 'generalReaderGlobs',
+  /* IT 용어 표, 어려운 한자어, 구어 낱말 규칙에서 빼는 구절입니다. `푸시 알림`처럼 표에 적은 말이 들어 있어도 잡지 않을 구절을 적습니다. */
+  'term-exempt': 'termExempt',
+  /* `translationese-patterns`에 적은 구절이 들어 있어도 번역투로 보지 않을 구절입니다. 근거를 뜻하는 `법에 의해` 같은 구절을 적습니다. */
+  'translationese-exempt': 'translationeseExempt',
+  /* 이유를 밝힌 문장을 끝내는 말입니다. */
+  'reason-endings': 'reasonEndings',
+  /* 이유 문장 바로 다음 문장 첫머리에 오면 알릴 접속 부사입니다. */
+  'result-adverbs': 'resultAdverbs',
 };
 
 /* 찾을 표현과 대신 쓸 후보를 짝지은 매핑 키입니다. */
 const MAP_KEYS = {
   /* 이중피동도 `보여=보이`처럼 찾을 어간과 대신 쓸 어간을 짝지어 적습니다. */
   'double-passive': 'doublePassive',
+  /* 개발자가 읽는 글에서 영어 원어로 써야 하는 IT 용어의 한글 음차입니다. */
   'banned-transliteration': 'bannedTransliteration',
+  /* 일반 뜻으로도 흔히 쓰여서 경고로만 알릴 IT 용어의 한글 음차입니다. */
+  'ambiguous-transliteration': 'ambiguousTransliteration',
+  /* IT 용어를 옮긴 번역어입니다. 일반 뜻과 겹치므로 경고로만 알립니다. */
   'banned-translation': 'bannedTranslation',
   'required-spelling': 'requiredSpelling',
   'loanword-spelling': 'loanwordSpelling',
@@ -47,12 +63,16 @@ const MAP_KEYS = {
   /* 정해 둔 낱말이 목적어일 때만 잡는 직역 동사입니다. 예전 검사기가 이 항목을 낱말 목록으로 잘못 읽지 않도록 `literal-verbs`와 다른 키에 둡니다. */
   'object-verbs': 'objectVerbs',
   'translationese-patterns': 'translationesePatterns',
-  /* 제목이나 항목 이름 전체가 적어 둔 낱말 하나일 때만 잡는 영어식 표현입니다. 이 키에 적는 `왜` 같은 낱말은 문장 안에서는 자연스러워서 `translationese-patterns`와 다른 키에 둡니다. */
+  /* 제목이나 항목 이름 전체가 적어 둔 낱말 하나일 때만 잡는 번역투입니다. 이 키에 적는 `왜` 같은 낱말은 문장 안에서는 자연스러워서 `translationese-patterns`와 다른 키에 둡니다. */
   'translationese-headings': 'translationeseHeadings',
   'known-typos': 'knownTypos',
   /* 영어를 낱말 단위로 옮겨 만든 말과 대신 쓸 표현입니다. */
   calques: 'calques',
   'inclusive-terms': 'inclusiveTerms',
+  /* 한자 관형사나 어려운 한자어와 대신 쓸 쉬운 말입니다. */
+  'hanja-words': 'hanjaWords',
+  /* 격식 있는 문어체에 쓰지 않는 구어 표현과 대신 쓸 말입니다. */
+  'colloquial-words': 'colloquialWords',
 };
 
 /* 값이 숫자 하나인 키입니다. */
@@ -79,17 +99,17 @@ const NUMBER_KEYS = {
   'density-margin': 'densityMargin',
   /* 한글이 이 수 이상 들어간 글을 쓰기 전에 Claude는 `writing-skill`에 적힌 skill을 불러야 합니다. */
   'writing-skill-min-hangul': 'writingSkillMinHangul',
-  /* 한글이 이 수 이상 들어간 파일 내용, 커밋 메시지, PR과 이슈에 올리는 글은 `writer-agent`에 적힌 agent가 써야 합니다. */
+  /* 한글이 이 수 이상 들어간 파일 내용, commit 메시지, PR과 issue에 올리는 글은 `writer-agent`에 적힌 agent가 써야 합니다. */
   'writer-agent-min-hangul': 'writerAgentMinHangul',
   /* 한글이 이 수 이상 들어간 답변도 `writer-agent`에 적힌 agent가 써야 합니다. 0이면 답변에는 요구하지 않습니다. */
   'writer-agent-answer-min-hangul': 'writerAgentAnswerMinHangul',
-  /* 요청에서 쓴 한국어에 한글이 이 수 이상 들어 있어야 검토 모델에게 보냅니다. */
+  /* 요청에서 쓴 한국어에 한글이 이 수 이상 들어 있어야 검토 model에게 보냅니다. */
   'reviewer-min-hangul': 'reviewerMinHangul',
-  /* 답변은 한글이 이 수 이상일 때만 검토 모델에게 보냅니다. 0이면 답변은 보내지 않습니다. */
+  /* 답변은 한글이 이 수 이상일 때만 검토 model에게 보냅니다. 0이면 답변은 보내지 않습니다. */
   'reviewer-answer-min-hangul': 'reviewerAnswerMinHangul',
-  /* 검토 모델에게 한 번에 보내는 한글의 상한입니다. */
+  /* 검토 model에게 한 번에 보내는 한글의 상한입니다. */
   'reviewer-max-hangul': 'reviewerMaxHangul',
-  /* 검토 모델의 답을 기다리는 시간(초)입니다. */
+  /* 검토 model의 답을 기다리는 시간(초)입니다. */
   'reviewer-timeout': 'reviewerTimeout',
 };
 
@@ -101,11 +121,11 @@ const KEYED_NUMBER_KEYS = {
 /* 값이 문자열 하나인 키입니다. */
 const STRING_KEYS = {
   register: 'register',
-  /* 한국어를 쓰는 요청마다 불러야 하는 skill입니다. 비워 두면 요구하지 않습니다. */
+  /* 한국어를 쓰기 전에 session마다 한 번 불러야 하는 skill입니다. 비워 두면 요구하지 않습니다. */
   'writing-skill': 'writingSkill',
   /* 한글이 많은 글을 맡길 agent입니다. 비워 두면 요구하지 않습니다. */
   'writer-agent': 'writerAgent',
-  /* Claude가 요청에서 쓴 한국어를 따로 읽게 할 검토 모델입니다. 비워 두면 검토하지 않습니다. */
+  /* Claude가 요청에서 쓴 한국어를 따로 읽게 할 검토 model입니다. 비워 두면 검토하지 않습니다. */
   'reviewer-model': 'reviewerModel',
   /* 문서에서 `<!-- 이 값 -->` 줄과 `<!-- /이 값 -->` 줄 사이는 다른 글을 그대로 옮긴 인용으로 보고 검사하지 않습니다. */
   'quote-marker': 'quoteMarker',
@@ -125,7 +145,7 @@ export const REGISTER_BANNED_ENDINGS = {
   혼용: [],
 };
 
-/* Claude Code가 커밋 메시지와 PR 설명에 붙이는 생성 표시입니다. `banned-attribution` 키가 없는 예전 규칙을 쓰거나 규칙 문서를 읽지 못했을 때도 이 목록으로 검사합니다. */
+/* Claude Code가 commit 메시지와 PR 설명에 붙이는 생성 표시입니다. `banned-attribution` 키가 없는 예전 규칙을 쓰거나 규칙 문서를 읽지 못했을 때도 이 목록으로 검사합니다. */
 export const DEFAULT_ATTRIBUTION = ['Generated with [Claude Code]', 'Generated with Claude Code', 'noreply@anthropic.com'];
 
 /* 같은 말투를 가리키는 다른 이름입니다. 이 도구는 0.3.0까지 합니다체를 `다나까체`라고 불렀습니다. 국립국어원 문법 용어로는 하십시오체라고 합니다. */
@@ -151,6 +171,7 @@ export function withRegister(rules, name) {
 const FALLBACK = {
   advisoryRules: [],
   reviewRules: [],
+  chatAdvisoryRules: [],
   register: '합니다체',
   bannedChar: ['middot', 'em-dash', 'emoji', 'hanja', 'kana'],
   bannedAddress: ['당신'],
@@ -174,7 +195,13 @@ const FALLBACK = {
   pluralQuantifiers: [],
   literalVerbExempt: [],
   bannedAttribution: DEFAULT_ATTRIBUTION,
+  generalReaderGlobs: [],
+  termExempt: [],
+  translationeseExempt: [],
+  reasonEndings: [],
+  resultAdverbs: [],
   bannedTransliteration: new Map(),
+  ambiguousTransliteration: new Map(),
   bannedTranslation: new Map(),
   requiredSpelling: new Map(),
   loanwordSpelling: new Map(),
@@ -185,6 +212,8 @@ const FALLBACK = {
   knownTypos: new Map(),
   calques: new Map(),
   inclusiveTerms: new Map(),
+  hanjaWords: new Map(),
+  colloquialWords: new Map(),
   chatToolFields: new Map(),
   agentToolFields: new Map(),
   maxContrastPer1k: {},
@@ -234,6 +263,7 @@ function freshRules() {
     ...FALLBACK,
     advisoryRules: [],
     reviewRules: [],
+    chatAdvisoryRules: [],
     bannedChar: [],
     bannedAddress: [],
     imperativeEndings: [],
@@ -257,7 +287,13 @@ function freshRules() {
     literalVerbExempt: [],
     /* 키가 없으면 null로 남겨 두고 `withMinimum`에서 기본 목록으로 채웁니다. */
     bannedAttribution: null,
+    generalReaderGlobs: [],
+    termExempt: [],
+    translationeseExempt: [],
+    reasonEndings: [],
+    resultAdverbs: [],
     bannedTransliteration: new Map(),
+    ambiguousTransliteration: new Map(),
     bannedTranslation: new Map(),
     requiredSpelling: new Map(),
     loanwordSpelling: new Map(),
@@ -268,6 +304,8 @@ function freshRules() {
     knownTypos: new Map(),
     calques: new Map(),
     inclusiveTerms: new Map(),
+    hanjaWords: new Map(),
+    colloquialWords: new Map(),
     chatToolFields: new Map(),
     agentToolFields: new Map(),
     maxContrastPer1k: {},
@@ -355,7 +393,7 @@ export function parseRuleBlock(body) {
   return withMinimum(rules);
 }
 
-/* 금지 문자, 금지 호칭, 건너뛸 디렉터리 목록이 비어 있거나 생성 표시 키가 없으면 기본값으로 채웁니다. */
+/* 금지 문자, 금지 호칭, 건너뛸 directory 목록이 비어 있거나 생성 표시 키가 없으면 기본값으로 채웁니다. */
 function withMinimum(rules) {
   if (rules.bannedChar.length === 0) rules.bannedChar = [...FALLBACK.bannedChar];
   if (rules.bannedAddress.length === 0) rules.bannedAddress = [...FALLBACK.bannedAddress];
@@ -379,7 +417,7 @@ export function loadRules(docPath) {
   return { ...parseRuleBlock(block[1]), source: docPath, reason: null };
 }
 
-/* 코드 블록 안쪽을 다시 볼 때 쓰는 규칙입니다. */
+/* 코드 블록 안쪽을 다시 볼 때 쓰는 규칙입니다. 코드 블록에는 명령 출력과 예시 답변처럼 옮겨 적은 글이 많습니다. 따라서 IT 용어 표, 한자어, 구어 낱말, 접속 부사 규칙도 적용하지 않습니다. */
 export function fenceRules(rules) {
   return {
     ...rules,
@@ -388,6 +426,13 @@ export function fenceRules(rules) {
     needsGloss: [],
     negationPrefixes: [],
     calques: new Map(),
+    bannedTransliteration: new Map(),
+    ambiguousTransliteration: new Map(),
+    bannedTranslation: new Map(),
+    hanjaWords: new Map(),
+    colloquialWords: new Map(),
+    reasonEndings: [],
+    resultAdverbs: [],
     conjunctiveAdverbs: [],
     connectiveEndings: [],
     demonstratives: [],

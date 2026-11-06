@@ -32,13 +32,13 @@ const skillDirFor = (name) => join('.claude', 'skills', name);
 /* .gitignore와 경로 검사에 쓰는 POSIX 형식 skill 경로입니다. */
 const skillDirPosixFor = (name) => `.claude/skills/${name}`;
 
-/* output-style을 둘 디렉터리입니다. */
+/* output style을 둘 directory입니다. */
 const OUTPUT_STYLE_DIR = join('.claude', 'output-styles');
 
-/* .gitignore와 경로 검사에 쓰는 POSIX 형식 output-style 경로입니다. */
+/* .gitignore와 경로 검사에 쓰는 POSIX 형식 output style 경로입니다. */
 const OUTPUT_STYLE_DIR_POSIX = '.claude/output-styles';
 
-/* output-style의 이름입니다. */
+/* output style의 이름입니다. */
 const OUTPUT_STYLE_NAME = 'korean-style';
 
 /* 설치할 agent입니다. */
@@ -53,15 +53,15 @@ const agentPathPosixFor = (name) => `.claude/agents/${name}.md`;
 /* 이 도구가 설치한 agent 파일에 든 문구입니다. 이 문구가 없는 같은 이름의 파일은 사용자가 만든 파일로 보고 덮어쓰지 않습니다. */
 const AGENT_MARKER = 'korean-style이 설치한 파일입니다.';
 
-/* 설치할 agent 파일의 frontmatter 첫 줄에 설치 표시 문구를 YAML 주석으로 넣습니다. 이 저장소의 원본에는 이 문구를 두지 않습니다. */
+/* 설치할 agent 파일의 frontmatter 첫 줄에 설치 표시 문구를 YAML 주석으로 넣습니다. 이 repository의 원본에는 이 문구를 두지 않습니다. */
 export function agentWithMarker(body) {
-  return body.replace(/^---\n/, `---\n# ${AGENT_MARKER} 직접 고친 내용은 다시 설치할 때 설치 스크립트가 덮어씁니다.\n`);
+  return body.replace(/^---\n/, `---\n# ${AGENT_MARKER} 직접 고친 내용은 다시 설치할 때 설치 script가 덮어씁니다.\n`);
 }
 
 /* .gitignore에서 이 도구가 넣은 줄을 알아볼 때 쓰는 주석 줄입니다. */
 const GITIGNORE_MARKER = '# korean-style이 설치한 파일입니다. 이 가운데 직접 고쳐도 되는 파일은 rules.md뿐입니다.';
 
-/* 0.3.0까지 쓰던 주석 줄입니다. 다시 설치하면 설치 스크립트가 새 주석 줄로 바꿉니다. */
+/* 0.3.0까지 쓰던 주석 줄입니다. 다시 설치하면 설치 script가 새 주석 줄로 바꿉니다. */
 const OLD_GITIGNORE_MARKERS = [
   '# korean-style 설치 산출물입니다. rules.md만 이 프로젝트의 것입니다',
   '# korean-style이 설치한 파일입니다. 직접 고치는 파일은 rules.md뿐입니다',
@@ -79,13 +79,13 @@ export const GITIGNORE_LINES = [
   ...AGENT_NAMES.map(agentPathPosixFor),
 ];
 
-/* `claude --worktree`로 작업 트리를 만들 때 Claude Code가 복사할 파일 목록입니다. 형식은 .gitignore와 같습니다. */
+/* `claude --worktree`로 worktree를 만들 때 Claude Code가 복사할 파일 목록입니다. 형식은 .gitignore와 같습니다. */
 const WORKTREE_INCLUDE = '.worktreeinclude';
 
 /* settings.json에서 이 도구의 hook 명령을 알아볼 때 찾는 경로입니다. */
 const MARKER = `${INSTALLED_DIR}/scripts/hooks/`;
 
-/* 검토 hook은 백그라운드에서 실행되고 파일, 커밋 메시지, PR과 이슈 글에 고칠 표현이 있으면 Claude를 깨웁니다. hook은 검토 모델의 답을 `reviewer-timeout`까지 기다리므로 hook의 시간 제한은 그보다 넉넉히 둡니다. */
+/* 검토 hook은 background에서 실행됩니다. 검토 model이 파일, commit 메시지, PR과 issue 글에서 고칠 표현을 지적하면 Claude Code가 그 지적을 Claude에게 전달해 작업을 이어 가게 합니다. hook은 검토 model의 답을 `reviewer-timeout`까지 기다리므로 hook의 시간 제한은 그보다 넉넉히 둡니다. */
 const REVIEW_HOOK = { script: 'review.mjs', command: hookCommand('review'), asyncRewake: true, timeout: 300 };
 
 const HOOKS = [
@@ -132,10 +132,10 @@ export const REGISTER_FRAGMENTS = {
   혼용: 'honyong.md',
 };
 
-/* skill과 output-style에서 말투별 문구가 들어갈 구간입니다. */
+/* skill과 output style에서 말투별 문구가 들어갈 구간입니다. */
 export const REGISTER_SLOT = /<!-- register:begin -->[\s\S]*?<!-- register:end -->/;
 
-/* skill과 output-style의 말투 구간을 고른 말투의 문구로 바꿉니다. */
+/* skill과 output style의 말투 구간을 고른 말투의 문구로 바꿉니다. */
 export function skillWithRegister(body, fragment) {
   const filled = `<!-- register:begin -->\n${fragment.trim()}\n<!-- register:end -->`;
   return body.replace(REGISTER_SLOT, () => filled);
@@ -164,7 +164,7 @@ export function mergeHookSettings(existing, hooks = HOOKS) {
   return { settings: out, added };
 }
 
-/* Claude Code가 커밋 메시지와 PR 설명에 생성 표시를 붙이지 않게 합니다. 프로젝트 설정의 `attribution`에 `commit`이나 `pr` 값이 이미 있으면 그대로 두고 없는 값만 빈 문자열로 채웁니다. */
+/* Claude Code가 commit 메시지와 PR 설명에 생성 표시를 붙이지 않게 합니다. 프로젝트 설정의 `attribution`에 `commit`이나 `pr` 값이 이미 있으면 그대로 두고 없는 값만 빈 문자열로 채웁니다. */
 export function mergeAttribution(settings) {
   const out = settings === null || typeof settings !== 'object' ? {} : { ...settings };
   const current = out.attribution !== null && typeof out.attribution === 'object' && !Array.isArray(out.attribution) ? out.attribution : {};
@@ -172,7 +172,7 @@ export function mergeAttribution(settings) {
   return out;
 }
 
-/* 서버가 요약한 진행 보고가 화면에 나오지 않도록 프로젝트 설정의 `env`에 끄는 값을 넣습니다. 프로젝트가 이미 값을 정해 두었으면 그대로 둡니다. */
+/* server가 요약한 진행 보고가 화면에 나오지 않도록 프로젝트 설정의 `env`에 끄는 값을 넣습니다. 프로젝트가 이미 값을 정해 두었으면 그대로 둡니다. */
 export function mergeEnv(settings) {
   const out = settings === null || typeof settings !== 'object' ? {} : { ...settings };
   const current = out.env !== null && typeof out.env === 'object' && !Array.isArray(out.env) ? out.env : {};
@@ -180,7 +180,7 @@ export function mergeEnv(settings) {
   return out;
 }
 
-/* 프로젝트 설정에서 고른 output-style이 없을 때만 이 도구의 output-style을 기본값으로 둡니다. */
+/* 프로젝트 설정에서 고른 output style이 없을 때만 이 도구의 output style을 기본값으로 둡니다. */
 export function mergeOutputStyle(settings, name = OUTPUT_STYLE_NAME) {
   const out = settings === null || typeof settings !== 'object' ? {} : { ...settings };
   const current = out.outputStyle;
@@ -210,8 +210,8 @@ function selfCheck() {
     process.stdout.write(`${ok ? '  성공' : '  실패'} ${label}\n`);
   };
 
-  report(mergeHookSettings({}).added.length === 4, '빈 설정이면 이벤트 네 개에 hook을 추가한다');
-  report(mergeHookSettings(null).added.length === 4, '설정 파일이 없어도 이벤트 네 개에 hook을 추가한다');
+  report(mergeHookSettings({}).added.length === 4, '빈 설정이면 event 네 개에 hook을 추가한다');
+  report(mergeHookSettings(null).added.length === 4, '설정 파일이 없어도 event 네 개에 hook을 추가한다');
 
   /* 두 번 합쳐도 항목이 늘면 안 됩니다. */
   const once = mergeHookSettings({}).settings;
@@ -229,13 +229,13 @@ function selfCheck() {
     '프로젝트에 있던 hook을 지우지 않는다',
   );
 
-  /* 검토 hook은 `asyncRewake`로 등록해야 백그라운드에서 실행되고 Claude를 깨울 수 있습니다. */
+  /* 검토 hook을 `asyncRewake`로 등록해야 hook이 background에서 실행되고 종료 코드 2로 끝났을 때 Claude Code가 지적을 Claude에게 전달합니다. */
   const review = merged.hooks.Stop.at(-1).hooks[0];
-  report(review.asyncRewake === true && review.command.includes('review.mjs'), '검토 hook을 백그라운드에서 실행되고 Claude를 깨울 수 있는 hook으로 등록한다');
+  report(review.asyncRewake === true && review.command.includes('review.mjs'), '검토 hook을 background에서 실행되고 지적을 Claude에게 전할 수 있는 hook으로 등록한다');
 
   /* 설정의 다른 부분도 남아야 합니다. */
   const withEnv = mergeHookSettings({ env: { FOO: 'bar' } }).settings;
-  report(withEnv.env?.FOO === 'bar', 'hook 밖의 설정을 지우지 않는다');
+  report(withEnv.env?.FOO === 'bar', 'hook이 아닌 다른 설정은 지우지 않는다');
 
   /* 말투를 바꿀 때 `register:` 줄만 바뀌는지 확인합니다. */
   const swapped = 'register: 합니다체\nbanned-address: 당신\n'.replace(RULES_REGISTER_LINE, 'register: 해요체');
@@ -285,16 +285,16 @@ function selfCheck() {
     '진행 보고 요약을 끄는 값은 프로젝트가 정하지 않았을 때만 넣는다',
   );
 
-  /* gitignore 병합을 확인합니다. */
+  /* 빈 .gitignore에 줄을 추가하고, 두 번 추가해도 줄이 쌓이지 않는지 확인합니다. */
   const ignoreOnce = mergeGitignore('');
   report(ignoreOnce.added && ignoreOnce.text.includes(`${INSTALLED_DIR}/*`), '빈 gitignore에 줄을 추가한다');
   report(mergeGitignore(ignoreOnce.text).added === false, '두 번 추가해도 줄이 쌓이지 않는다');
 
-  /* 규칙 문서를 Git에서 빼면 저장소를 새로 clone한 사람은 그 프로젝트에서 고친 값을 받지 못합니다. */
+  /* 규칙 문서를 Git에서 빼면 repository를 새로 clone한 사람은 그 프로젝트에서 고친 값을 받지 못합니다. */
   report(ignoreOnce.text.includes(`!${INSTALLED_DIR}/rules.md`), '규칙 문서는 Git에서 제외하지 않는다');
 
-  /* 디렉터리 자체를 빼면 git이 그 안을 보지 않아서 부정 패턴이 적용되지 않습니다. */
-  report(!new RegExp(`^\\${INSTALLED_DIR}/$`, 'm').test(ignoreOnce.text), '디렉터리 자체가 아니라 그 안의 파일을 Git에서 제외한다');
+  /* directory 자체를 빼면 git이 그 안을 보지 않아서 부정 pattern이 적용되지 않습니다. */
+  report(!new RegExp(`^\\${INSTALLED_DIR}/$`, 'm').test(ignoreOnce.text), 'directory 자체가 아니라 그 안의 파일을 Git에서 제외한다');
 
   /* 설치하면서 남의 줄을 지우면 사용자에게 피해를 줍니다. */
   const keepMine = mergeGitignore('node_modules/\ndist/\n');
@@ -342,8 +342,8 @@ function main() {
   if (args.help) { console.log(usage); return; }
   if (!args.target) throw new Error(usage);
   const root = realpathSync(resolve(args.target));
-  if (!lstatSync(root).isDirectory()) throw new Error(`--target에는 디렉터리를 지정해야 합니다: ${root}`);
-  if (root === realpathSync(SOURCE_ROOT)) throw new Error('이 도구의 저장소에는 설치하지 않습니다.');
+  if (!lstatSync(root).isDirectory()) throw new Error(`--target에는 directory를 지정해야 합니다: ${root}`);
+  if (root === realpathSync(SOURCE_ROOT)) throw new Error('이 도구의 repository에는 설치하지 않습니다.');
   const asked = args.register === undefined ? undefined : canonicalRegister(args.register);
   if (asked !== undefined && !Object.hasOwn(REGISTER_FRAGMENTS, asked)) {
     throw new Error('--register는 합니다체, 해요체, 혼용 중 하나여야 합니다.');
@@ -377,7 +377,7 @@ function main() {
   const ignoreBefore = existsSync(ignorePath) ? readFileSync(ignorePath, 'utf8') : '';
   const hasGit = existsSync(join(root, '.git'));
   const ignore = hasGit ? mergeGitignore(ignoreBefore) : { text: ignoreBefore, added: false };
-  /* Git에서 제외한 설치 파일은 새 작업 트리에 생기지 않습니다. 같은 줄을 .worktreeinclude에도 적어 두면 `claude --worktree`로 작업 트리를 만들 때 Claude Code가 이 파일들을 복사합니다. */
+  /* Git에서 제외한 설치 파일은 새 worktree에 생기지 않습니다. 같은 줄을 .worktreeinclude에도 적어 두면 `claude --worktree`로 worktree를 만들 때 Claude Code가 이 파일들을 복사합니다. */
   const includePath = join(root, WORKTREE_INCLUDE);
   const includeBefore = existsSync(includePath) ? readFileSync(includePath, 'utf8') : '';
   const include = hasGit ? mergeGitignore(includeBefore) : { text: includeBefore, added: false };
@@ -390,24 +390,24 @@ function main() {
       if (existsSync(join(root, rel))) throw new Error(`같은 이름의 기존 파일은 덮어쓰지 않습니다: ${rel}`);
     }
   }
-  /* 설치 스크립트는 0.4.0부터 agent를 설치하므로 같은 이름의 agent 파일이 있는지 다시 설치할 때도 확인합니다. 설치 표시 문구가 없는 같은 이름의 파일은 사용자가 만든 agent로 봅니다. */
+  /* 설치 script는 0.4.0부터 agent를 설치하므로 같은 이름의 agent 파일이 있는지 다시 설치할 때도 확인합니다. 설치 표시 문구가 없는 같은 이름의 파일은 사용자가 만든 agent로 봅니다. */
   for (const name of AGENT_NAMES) {
     const path = join(root, agentPathFor(name));
     if (existsSync(path) && !readFileSync(path, 'utf8').includes(AGENT_MARKER)) {
       throw new Error(`같은 이름의 기존 파일은 덮어쓰지 않습니다: ${agentPathPosixFor(name)}`);
     }
   }
-  // 로컬 설정은 진단만 합니다. 다른 worktree의 settings.local.json도 바꾸지 않습니다.
+  // local 설정은 진단만 합니다. 다른 worktree의 settings.local.json도 바꾸지 않습니다.
   console.log(`설치할 프로젝트: ${root}\n말투: ${register}\n${refresh ? '새 기본 규칙을 씁니다.' : '기존 규칙을 그대로 둡니다.'}`);
-  if (!refresh) console.log('새 기본 규칙이 필요하면 --force를 붙여 다시 설치해야 합니다. 이때 설치 스크립트가 기존 규칙을 백업합니다.');
-  if (backup) console.log(`규칙 백업: ${backup}`);
-  if (style.settings.outputStyle !== OUTPUT_STYLE_NAME) console.log('기존 output-style을 유지합니다. korean-style로 바꾸려면 --activate를 붙여 다시 설치해야 합니다.');
+  if (!refresh) console.log('새 기본 규칙이 필요하면 --force를 붙여 다시 설치해야 합니다. 이때 설치 script가 기존 규칙을 backup합니다.');
+  if (backup) console.log(`규칙 backup: ${backup}`);
+  if (style.settings.outputStyle !== OUTPUT_STYLE_NAME) console.log('기존 output style을 유지합니다. korean-style로 바꾸려면 --activate를 붙여 다시 설치해야 합니다.');
   const effective = Object.assign({}, style.settings, ...local.map(x => x.settings));
   if (effective.disableAllHooks) console.log('주의: disableAllHooks가 켜져 있습니다. 이 설정을 꺼야 hook이 실행됩니다.');
   if (effective.outputStyle !== style.settings.outputStyle) console.log('주의: settings.local.json의 outputStyle이 프로젝트 설정보다 우선합니다.');
-  /* Claude Code는 설정 파일의 `env`를 키마다 합치고 같은 키는 로컬 설정의 값을 씁니다. 그래서 여기서도 프로젝트 설정, 로컬 설정 순서로 놓고 값이 있는 마지막 파일의 값을 봅니다. */
+  /* Claude Code는 설정 파일의 `env`를 키마다 합치고 같은 키는 local 설정의 값을 씁니다. 따라서 여기서도 프로젝트 설정, local 설정 순서로 놓고 값이 있는 마지막 파일의 값을 봅니다. */
   const summary = [style.settings, ...local.map(x => x.settings)].map(s => s?.env?.[PROGRESS_SUMMARY_ENV]).filter(v => v !== undefined).at(-1);
-  if (!isOffValue(summary)) console.log(`주의: env의 ${PROGRESS_SUMMARY_ENV} 값이 요약을 끄는 값이 아니어서 서버가 요약한 진행 보고가 화면에 나옵니다. 서버가 요약한 문장은 skill과 검사기를 거치지 않습니다.`);
+  if (!isOffValue(summary)) console.log(`주의: env의 ${PROGRESS_SUMMARY_ENV} 값이 요약을 끄는 값이 아니어서 server가 요약한 진행 보고가 화면에 나옵니다. server가 요약한 문장은 skill과 검사기를 거치지 않습니다.`);
   if (args['dry-run']) { reportCommitHook(installCommitHook(root, true)); console.log('--dry-run: 파일을 쓰지 않았습니다.'); return; }
 
   mkdirSync(installDir, { recursive: true });
@@ -439,9 +439,9 @@ function main() {
   if (ignore.added) writeFileSync(ignorePath, ignore.text);
   if (include.added) writeFileSync(includePath, include.text);
   console.log(`설치했습니다. 새 hook: ${added.join(', ') || '없음'}`);
-  if (!hasGit) console.log('.git이 없어서 .gitignore와 .worktreeinclude를 수정하지 않았습니다. git init 후 다시 설치하면 설치 스크립트가 필요한 항목을 추가합니다.');
+  if (!hasGit) console.log('.git이 없어서 .gitignore와 .worktreeinclude를 수정하지 않았습니다. git init 후 다시 설치하면 설치 script가 필요한 항목을 추가합니다.');
   reportCommitHook(installCommitHook(root));
-  console.log('설치한 프로젝트에서 Claude Code를 다시 시작해야 설치 내용이 적용됩니다. 그때부터 Claude는 한국어를 써야 하는 요청마다 먼저 korean-rewrite skill을 부르고 한글이 많은 글은 korean-writer agent에게 맡깁니다.');
+  console.log('설치한 프로젝트에서 Claude Code를 다시 시작해야 설치 내용이 적용됩니다. 그때부터 Claude는 session에서 처음 한국어를 쓰기 전에 korean-rewrite skill을 부르고 한글이 많은 글은 korean-writer agent에게 맡깁니다.');
   const quoted = "'" + join(installDir, 'scripts/doctor.mjs').replaceAll("'", "'\\''") + "'";
   console.log(`점검: node ${quoted}`);
 }

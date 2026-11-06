@@ -1,4 +1,4 @@
-/* Claude Code가 커밋 메시지와 PR 설명 끝에 붙이는 생성 표시를 찾습니다. */
+/* Claude Code가 commit 메시지와 PR 설명 끝에 붙이는 생성 표시를 찾습니다. */
 
 /*
  * 규칙 문서의 `banned-attribution`에 적은 문구가 든 줄을 찾습니다. 대소문자는 가리지 않습니다.

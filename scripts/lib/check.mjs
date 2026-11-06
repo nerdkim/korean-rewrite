@@ -1,29 +1,45 @@
-/* 규칙 모듈을 실행하고 위반을 경고와 오류로 나눕니다. */
+/* 규칙을 하나씩 실행하고 위반을 경고와 오류로 나눕니다. */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fenceRules, RULE_FENCE } from './rules.mjs';
 import { blankQuoteRegions, onlyFenced, stripCode } from './text.mjs';
 import { koreanCommentsOf } from './comments.mjs';
-import { isDocPath, isSourcePath, TARGETS, targetForPath, toProjectRelative } from './targets.mjs';
+import { isDocPath, isGeneralReaderPath, isSourcePath, TARGETS, targetForPath, toProjectRelative } from './targets.mjs';
 import { charViolations } from './rules/chars.mjs';
 import { registerViolations } from './rules/register.mjs';
 import { punctuationViolations } from './rules/punctuation.mjs';
 import { structureViolations } from './rules/structure.mjs';
 import { translationeseViolations } from './rules/translationese.mjs';
 import { vocabularyViolations } from './rules/vocabulary.mjs';
+import { connectiveViolations } from './rules/connectives.mjs';
 import { densityViolations } from './rules/density.mjs';
 import { attributionViolations } from './rules/attribution.mjs';
 
-/* 텍스트 하나를 검사해 위반 목록을 돌려줍니다. */
+/* 문서가 일반 독자가 읽는 글이라고 밝히는 줄입니다. 코드 블록 밖에 이 줄이 있으면 파일 전체에 IT 용어 표 규칙을 적용하지 않습니다. */
+export const GENERAL_READER_MARK = /^[ \t]*<!--[ \t]*korean-style:[ \t]*general-reader[ \t]*-->[ \t]*$/mu;
+
+/* 일반 독자가 읽는 글인지 봅니다. 경로가 `general-reader-globs`에 들었거나 문서에 일반 독자용 표시 줄이 있으면 일반 독자가 읽는 글로 봅니다. */
+function isGeneralReader(text, target, path, rules) {
+  if (isGeneralReaderPath(path, rules)) return true;
+  return target === 'doc' && GENERAL_READER_MARK.test(stripCode(text));
+}
+
+/*
+ * 텍스트 하나를 검사해 위반 목록을 돌려줍니다.
+ * `options.path`는 파일 경로입니다. 소스 파일에서 주석을 뽑을 때와 일반 독자용 경로를 가릴 때 씁니다.
+ * `options.toolInput`이 true이면 도구에 넘기는 글로 봅니다. 이때는 답변과 마찬가지로 `chat-advisory-rules`에 든 규칙에 걸린 표현을 경고로 보고합니다.
+ */
 export function checkText(input, rules, target = 'chat', options = {}) {
   if (typeof input !== 'string' || input.trim().length === 0) return [];
   if (!TARGETS.includes(target)) throw new Error(`알 수 없는 검사 종류입니다: ${target}`);
 
-  /* 한글 자모를 완성형 음절로 합칩니다. 인용 구간은 문서에서만 건너뜁니다. 답변이나 커밋 메시지를 인용 표시로 감싸 검사를 피하지 못하게 합니다. */
+  /* 한글 자모를 완성형 음절로 합칩니다. 인용 구간은 문서에서만 건너뜁니다. 답변이나 commit 메시지를 인용 표시로 감싸 검사를 피하지 못하게 합니다. */
   const normalized = input.normalize('NFC');
   const rawText = target === 'doc' ? blankQuoteRegions(normalized, rules.quoteMarker) : normalized;
 
   const inFence = options.inFence === true;
+  const toolInput = options.toolInput === true;
+  const generalReader = options.generalReader ?? isGeneralReader(rawText, target, options.path, rules);
 
   /* 소스 파일은 주석만 봅니다. */
   if (target === 'comment' && !inFence) {
@@ -31,8 +47,13 @@ export function checkText(input, rules, target = 'chat', options = {}) {
     const comments = koreanCommentsOf(rawText, options.path);
     if (comments.trim().length === 0) return [];
     /* 뽑아낸 주석은 문서와 같은 규칙(`doc`)으로 다시 검사합니다. */
-    return checkText(comments, rules, 'doc', { inFence: false });
+    return checkText(comments, rules, 'doc', { inFence: false, generalReader });
   }
+
+  /* 도구에 넘기는 글과 답변에서는 `chat-advisory-rules`에 든 규칙에 걸린 표현도 경고로 보고합니다. */
+  const advisory = new Set(rules.advisoryRules ?? []);
+  const relaxed = new Set(target === 'chat' || toolInput ? rules.chatAdvisoryRules ?? [] : []);
+  const blocking = (rule) => !advisory.has(rule) && !relaxed.has(rule);
 
   const text = stripCode(rawText);
   const violations = [
@@ -41,7 +62,12 @@ export function checkText(input, rules, target = 'chat', options = {}) {
     ...punctuationViolations(text, rules),
     ...structureViolations(text, rules),
     ...translationeseViolations(text, rules),
-    ...vocabularyViolations(text, rules, target),
+    ...vocabularyViolations(text, rules, target, {
+      terms: !generalReader,
+      termsBlocking: blocking('transliteration'),
+      hint: target === 'doc' && !toolInput && !inFence,
+    }),
+    ...connectiveViolations(text, rules),
     ...densityViolations(text, rules),
     ...attributionViolations(text, rules),
   ];
@@ -49,7 +75,7 @@ export function checkText(input, rules, target = 'chat', options = {}) {
   if (!inFence) {
     const fenced = onlyFenced(rawText, [RULE_FENCE]);
     if (fenced.trim().length > 0) {
-      for (const v of checkText(fenced, fenceRules(rules), target, { inFence: true })) {
+      for (const v of checkText(fenced, fenceRules(rules), target, { inFence: true, toolInput, generalReader })) {
         violations.push({
           ...v,
           detail: `${v.detail} 코드 블록 안에서 찾은 위반입니다.`,
@@ -59,8 +85,7 @@ export function checkText(input, rules, target = 'chat', options = {}) {
   }
 
   violations.sort((a, b) => a.line - b.line);
-  const advisory = new Set(rules.advisoryRules ?? []);
-  return violations.map(v => ({ ...v, severity: advisory.has(v.rule) ? 'warning' : 'error' }));
+  return violations.map(v => ({ ...v, severity: blocking(v.rule) ? 'error' : 'warning' }));
 }
 
 export const blockingViolations = violations => violations.filter(v => v.severity !== 'warning');
@@ -89,12 +114,12 @@ export function toolFieldTexts(toolName, input, rules, which = 'chatToolFields')
   return out;
 }
 
-/* 도구 호출의 필드 값을 하나씩 검사합니다. */
+/* 도구 호출의 필드 값을 하나씩 검사합니다. 사용자에게 보여 주는 글과 agent에게 주는 prompt에서도 답변과 마찬가지로 `chat-advisory-rules`에 든 규칙에 걸린 표현을 경고로 보고합니다. agent에게 주는 prompt에는 사용자가 준 글이나 이용자 공지에 담을 사실이 들어 있을 때가 많기 때문입니다. */
 export function checkToolCall(toolName, input, rules, target = 'chat') {
   const which = target === 'chat' ? 'chatToolFields' : 'agentToolFields';
   const problems = [];
   for (const { path, text } of toolFieldTexts(toolName, input, rules, which)) {
-    for (const v of checkText(text, rules, target)) problems.push({ ...v, where: path });
+    for (const v of checkText(text, rules, target, { toolInput: true })) problems.push({ ...v, where: path });
   }
   return problems;
 }

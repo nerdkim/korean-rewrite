@@ -1,8 +1,8 @@
-/* Claude가 요청에 답하면서 한국어를 쓸 때마다 규칙 문서에 적힌 skill을 불렀는지 확인합니다. */
+/* Claude가 한국어를 쓰기 전에 이 session에서 규칙 문서에 적힌 skill을 불렀는지 확인합니다. */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/* skill을 부르지 않아 hook이 막을 때 넣는 문구입니다. 같은 요청에서 몇 번 막았는지 셀 때도 씁니다. */
+/* skill을 부르지 않아 hook이 막을 때 넣는 문구입니다. 같은 요청에서 막은 횟수를 집계할 때도 씁니다. */
 export const SKILL_MISSING = 'skill을 부르지 않았습니다';
 
 /* hook이 같은 요청에서 이만큼 막았는데도 Claude가 skill을 부르지 않으면 hook은 Skill 도구를 쓸 수 없는 환경으로 보고 더 막지 않습니다. */
@@ -20,7 +20,7 @@ export function skillInstalled(projectRoot, name) {
 
 /*
  * 사용자가 직접 보낸 메시지인지 봅니다. 도구 결과와 skill 본문은 Claude Code가 사용자 메시지로 넣은 줄이라 제외합니다.
- * 백그라운드 agent가 끝났다는 알림도 `origin.kind`가 `task-notification`인 사용자 메시지로 기록되므로 제외합니다. 그래야 알림을 받은 뒤에 쓰는 글도 agent를 부른 요청 안에서 쓴 글로 봅니다. 이 기록 형식은 Claude Code 2.1.310에서 확인했습니다.
+ * background agent가 끝났다는 알림도 `origin.kind`가 `task-notification`인 사용자 메시지로 기록되므로 제외합니다. 그래야 알림을 받은 뒤에 쓰는 글도 agent를 부른 요청 안에서 쓴 글로 봅니다. 이 기록 형식은 Claude Code 2.1.310에서 확인했습니다.
  */
 function isUserPrompt(entry) {
   if (entry?.type !== 'user' || entry.isMeta === true) return false;
@@ -29,8 +29,8 @@ function isUserPrompt(entry) {
   return !(Array.isArray(content) && content.length > 0 && content.every((part) => part?.type === 'tool_result'));
 }
 
-/* transcript에서 이번 요청의 항목을 순서대로 돌려줍니다. 파일을 읽지 못하면 null을 돌려줍니다. */
-export function currentTurn(transcriptPath) {
+/* transcript를 끝에서부터 읽다가 `stop`이 참을 돌려주는 항목을 만나면 멈추고, 그 항목 뒤의 항목을 순서대로 돌려줍니다. 파일을 읽지 못하면 null을 돌려줍니다. */
+function entriesAfter(transcriptPath, stop) {
   let raw;
   try {
     raw = readFileSync(transcriptPath, 'utf-8');
@@ -48,10 +48,15 @@ export function currentTurn(transcriptPath) {
     } catch {
       continue;
     }
-    if (isUserPrompt(entry)) break;
+    if (stop(entry)) break;
     entries.push(entry);
   }
   return entries.reverse();
+}
+
+/* transcript에서 이번 요청의 항목을 순서대로 돌려줍니다. 파일을 읽지 못하면 null을 돌려줍니다. */
+export function currentTurn(transcriptPath) {
+  return entriesAfter(transcriptPath, isUserPrompt);
 }
 
 /* 이번 요청을 시작한 사용자 메시지의 글입니다. 찾지 못하면 빈 문자열을 돌려줍니다. */
@@ -79,14 +84,14 @@ export function lastUserPrompt(transcriptPath) {
   return '';
 }
 
-/* subagent가 도구를 불러도 hook은 메인 세션의 transcript 경로를 받습니다. 그래서 이 함수가 subagent의 transcript 경로를 따로 계산합니다. */
+/* subagent가 도구를 불러도 hook은 main session의 transcript 경로를 받습니다. 따라서 이 함수가 subagent의 transcript 경로를 따로 계산합니다. */
 export function agentTranscriptPath(transcriptPath, agentId) {
   if (typeof transcriptPath !== 'string' || !transcriptPath.endsWith('.jsonl')) return null;
   if (typeof agentId !== 'string' || !/^[\w-]+$/.test(agentId)) return null;
   return join(transcriptPath.slice(0, -'.jsonl'.length), 'subagents', `agent-${agentId}.jsonl`);
 }
 
-/* 이번 요청에서 이 이름의 skill을 불렀는지 봅니다. */
+/* 주어진 항목에 이 이름의 skill을 부른 기록이 있는지 봅니다. */
 export function usedSkill(entries, name) {
   for (const entry of entries) {
     if (entry?.type !== 'assistant') continue;
@@ -99,6 +104,24 @@ export function usedSkill(entries, name) {
     }
   }
   return false;
+}
+
+/* 대화를 압축한 지점을 표시하는 기록인지 봅니다. */
+function isCompactBoundary(entry) {
+  return entry?.type === 'system' && entry.subtype === 'compact_boundary';
+}
+
+/*
+ * 이 session에서 skill을 불렀는지 봅니다. 대화를 마지막으로 압축한 지점 뒤에서 Skill 도구 호출을 찾고, 압축한 적이 없으면 session 처음부터 찾습니다.
+ * 압축 지점 뒤에 `invoked_skills` 첨부가 있고 그 안에 이 skill이 있어도 불렀다고 봅니다.
+ * Claude가 이미 불러온 skill을 다시 부르면 Claude Code 2.1.310은 본문을 다시 넣지 않습니다. 따라서 요청마다 다시 부르게 하지 않습니다. 이 transcript 형식은 2.1.310에서 확인했습니다.
+ */
+export function loadedSkill(transcriptPath, name) {
+  const entries = entriesAfter(transcriptPath, isCompactBoundary);
+  if (entries === null) return false;
+  return usedSkill(entries, name) || entries.some((entry) =>
+    entry?.type === 'attachment' && entry.attachment?.type === 'invoked_skills' &&
+    Array.isArray(entry.attachment.skills) && entry.attachment.skills.some((skill) => skill?.name === name));
 }
 
 /* 이번 요청에서 skill을 부르지 않아 막힌 횟수입니다. */
@@ -120,7 +143,7 @@ export function skillDenials(entries) {
 /*
  * 한국어를 쓰기 전에 skill을 불러야 하는지 판단합니다.
  * skill이 꺼져 있거나 설치되지 않았거나, 한글이 기준보다 적거나, transcript를 읽지 못하면 요구하지 않습니다.
- * Claude가 이번 요청에 이미 skill을 불렀거나 hook이 같은 요청에서 정해 둔 횟수만큼 막았을 때도 요구하지 않습니다.
+ * Claude가 이 session에서 이미 skill을 불렀거나, 이번 요청에서 작성 agent에게 글을 맡겼거나, hook이 이번 요청에서 정해 둔 횟수만큼 막았을 때도 요구하지 않습니다.
  */
 export function needsSkill({ text, rules, projectRoot, transcriptPath, agentId }) {
   const name = rules.writingSkill;
@@ -130,16 +153,16 @@ export function needsSkill({ text, rules, projectRoot, transcriptPath, agentId }
   const entries = path === null ? null : currentTurn(path);
   if (entries === null) return false;
   /* 작성 agent의 frontmatter에 이 skill을 미리 불러오도록 적어 두었으므로 그 agent에게 글을 맡긴 요청에서는 skill을 따로 요구하지 않습니다. */
-  if (usedSkill(entries, name) || usedAgent(entries, rules.writerAgent)) return false;
+  if (usedSkill(entries, name) || loadedSkill(path, name) || usedAgent(entries, rules.writerAgent)) return false;
   return skillDenials(entries) < MAX_SKILL_DENIALS;
 }
 
 /* skill을 부르라고 요구하는 문구입니다. */
 export function skillRequest(name, retry) {
-  return `이번 요청에 답하면서 아직 ${name} ${SKILL_MISSING}. 한국어를 쓰기 전에 Skill 도구로 ${name} skill을 부르고 그 절차를 따라 ${retry}`;
+  return `이 session에서 아직 ${name} ${SKILL_MISSING}. 한국어를 쓰기 전에 Skill 도구로 ${name} skill을 부르고 그 절차를 따라 ${retry}`;
 }
 
-/* 작성 agent에게 글을 맡기지 않아 hook이 막을 때 넣는 문구입니다. 같은 요청에서 몇 번 막았는지 셀 때도 씁니다. */
+/* 작성 agent에게 글을 맡기지 않아 hook이 막을 때 넣는 문구입니다. 같은 요청에서 막은 횟수를 집계할 때도 씁니다. */
 export const WRITER_MISSING = 'agent에게 글을 맡기지 않았습니다';
 
 /* hook이 같은 요청에서 이만큼 막았는데도 Claude가 작성 agent에게 글을 맡기지 않으면 hook은 Agent 도구를 쓸 수 없는 환경으로 보고 더 막지 않습니다. */

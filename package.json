@@ -1,20 +1,20 @@
 {
-  "name": "im-a-korean-ai-in-seoul",
+  "name": "korean-rewrite",
   "version": "0.4.1",
-  "description": "Claude Code에서 Claude가 처음부터 한국어로 생각해 자연스러운 한국어를 쓰도록 한국어 작성 skill과 문체 검사 hook을 설치합니다.",
+  "description": "Claude Code에서 Claude가 번역투 대신 자연스러운 한국어를 쓰도록 한국어 작성 skill, 작성 agent, 문체 검사기, hook을 설치합니다.",
   "type": "module",
   "license": "MIT",
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nerdkim/im-a-korean-ai-in-seoul.git"
+    "url": "git+https://github.com/nerdkim/korean-rewrite.git"
   },
-  "homepage": "https://github.com/nerdkim/im-a-korean-ai-in-seoul#readme",
+  "homepage": "https://github.com/nerdkim/korean-rewrite#readme",
   "bugs": {
-    "url": "https://github.com/nerdkim/im-a-korean-ai-in-seoul/issues"
+    "url": "https://github.com/nerdkim/korean-rewrite/issues"
   },
   "bin": {
-    "im-a-korean-ai-in-seoul": "scripts/install.mjs"
+    "korean-rewrite": "scripts/install.mjs"
   },
   "engines": {
     "node": ">=20"
