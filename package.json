@@ -1,6 +1,6 @@
 {
   "name": "korean-rewrite",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Claude Code에서 Claude가 번역투 대신 자연스러운 한국어를 쓰도록 한국어 작성 skill, 작성 agent, 문체 검사기, hook을 설치합니다.",
   "type": "module",
   "license": "MIT",
