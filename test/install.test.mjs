@@ -1121,7 +1121,9 @@ test('README의 shell 설치 명령을 새 프로젝트와 기존 프로젝트�
   }
   assert.equal(git(source, ['add', '.']).status, 0);
   assert.equal(git(source, ['commit', '-qm', 'fixture']).status, 0);
-  const readme = readFileSync(join(ROOT, 'README.md'), 'utf8').match(/```sh\n([\s\S]*?)\n```/)[1];
+  /* 번호 목록 안에 들여 쓴 코드 블록이면 들여쓰기를 지운 뒤 실행합니다. */
+  const [, indent, block] = readFileSync(join(ROOT, 'README.md'), 'utf8').match(/^( *)```sh\n([\s\S]*?)\n\1```/m);
+  const readme = block.split('\n').map(line => (line.startsWith(indent) ? line.slice(indent.length) : line)).join('\n');
   /* GitHub 대신 이 repository의 파일을 복사해 commit한 임시 repository를 npx로 받습니다. 받은 package에는 package.json의 `files`에 적힌 파일만 들어 있습니다. */
   const instructions = readme.replace(/github:[\w.-]+\/[\w.-]+/, `git+file://${source}`);
   assert.notEqual(instructions, readme, 'README의 첫 설치 명령이 npx 형식이 아닙니다');

@@ -1,7 +1,8 @@
 <h1 align="center">korean-rewrite</h1>
 
 <p align="center">
-  <strong>Claude Code에서 Claude가 번역투 대신 자연스러운 한국어를 쓰게 합니다.</strong>
+  <strong>Claude Code용 한국어 글쓰기 skill과 hook 묶음입니다.</strong><br>
+  Claude가 번역투 대신 자연스러운 한국어를 쓰게 합니다.
 </p>
 
 <p align="center">
@@ -11,21 +12,83 @@
   <img alt="Claude Code skill과 hook" src="https://img.shields.io/badge/Claude%20Code-skill%20%2B%20hook-d97757">
 </p>
 
-korean-rewrite는 Claude Code를 쓰는 프로젝트에 한국어 작성 skill, 작성 agent, 문체 검사기, hook을 설치하는 도구입니다. 설치하면 skill이 Claude에게 번역투를 쓰지 말고 업무 문서처럼 격식 있는 문어체로 쓰라고 지시합니다. Claude가 쓴 글에서 검사기가 오류를 찾으면 hook은 그 글이 파일, commit, PR에 남지 않게 막습니다.
+korean-rewrite는 Claude Code에서 Claude가 번역투 대신 자연스러운 한국어를 쓰게 하는 도구입니다. 설치하면 Claude는 답변을 포함한 모든 글을 업무 문서처럼 격식 있는 문어체로 씁니다. 이 도구는 Claude Code용 skill 2개, subagent 1개, output style 1개, Claude Code hook 5개, Git `commit-msg` hook, 문체 검사기로 이루어져 있습니다. 설치 script 하나가 이 구성 요소를 모두 프로젝트에 넣습니다.
 
-## 한눈에 보기
+설치 script는 구성 요소를 프로젝트의 `.claude/`와 `.korean-style/` directory에 복사합니다. Claude Code hook은 `.claude/settings.json`에 등록하고 Git `commit-msg` hook은 Git의 hook directory(기본값 `.git/hooks/`)에 설치합니다. 프로젝트마다 설치하며 사용자 전역 설정 directory(`~/.claude/`)에는 설치하지 않습니다. Claude Code의 plugin 명령(`/plugin install`)으로는 설치할 수 없습니다.
 
-commit 메시지를 써 달라는 요청을 이 도구가 없는 프로젝트와 이 도구를 설치한 프로젝트에서 똑같이 Claude에게 보냈습니다.
+| 종류 | 이름 | 하는 일 |
+| --- | --- | --- |
+| skill | `korean-rewrite` | Claude가 session에서 처음 한국어를 쓰기 전에 부르는 작성 규칙입니다. 번역투의 정의, 고칠 표현과 고친 예, 말투, IT 용어 표기 규칙을 담았습니다. |
+| skill | `korean-style` | 검사 규칙을 확인하거나 어색한 표현의 원인을 찾을 때 부릅니다. |
+| subagent | `korean-writer` | 파일, commit 메시지, PR과 issue에 올리는 글에서 한 번에 쓰는 한글이 200자 이상이면 Claude가 이 agent에게 메모를 넘겨 글을 맡깁니다. |
+| output style | `korean-style` | 답변의 말투와 기본 원칙을 정합니다. |
+| Claude Code hook | `UserPromptSubmit`, `PreToolUse`, `Stop`, `SubagentStop` | 설치 script는 이 네 시점에 실행되는 hook 5개를 등록합니다. `UserPromptSubmit`에 1개, `PreToolUse`에 1개, `Stop`에 2개, `SubagentStop`에 1개입니다. hook은 Claude가 skill을 먼저 부르게 합니다. Claude가 파일, commit 메시지, PR과 issue에 쓰는 글과 답변은 hook이 검사기로 검사해 오류가 있으면 막거나 다시 쓰게 합니다. 요청을 마친 뒤에는 그 요청에서 쓴 한국어를 검토 model(기본값 Sonnet)에게 다시 읽힙니다. |
+| Git hook | `commit-msg` | 어느 프로그램으로 commit하든 commit 메시지를 검사합니다. |
+| 검사기 | `check-korean.mjs` | 규칙 문서 `.korean-style/rules.md`에 적힌 표현을 찾는 Node.js script입니다. model과 network를 쓰지 않으므로 같은 글은 늘 같은 결과가 나옵니다. |
+
+구성 요소마다 설치되는 경로는 [구조](#구조) 절에 있습니다.
+
+## 빠르게 시작하기
+
+Node.js 20 이상, npm, Git, Claude Code가 필요합니다. 명령은 macOS, Linux, WSL의 shell에서 실행합니다. 이 도구는 다른 npm package를 설치하지 않습니다.
+
+설치하는 방법은 Claude Code에게 맡기는 방법과 terminal에서 직접 명령을 실행하는 방법 두 가지입니다. 어느 방법으로 설치하든 설치한 뒤에 Claude Code를 재시작해야 합니다. 실행 중인 session을 끝내고 새 session을 열어야 skill과 hook이 적용됩니다.
+
+### Claude Code에게 설치 맡기기
+
+설치할 프로젝트의 root directory에서 Claude Code를 열고 아래 요청을 그대로 보내 주십시오.
+
+```text
+이 프로젝트에 korean-rewrite(https://github.com/nerdkim/korean-rewrite)를 설치해 주십시오. 프로젝트 root directory에서 `npx -y github:nerdkim/korean-rewrite --target . --activate`를 실행한 뒤 `node .korean-style/scripts/doctor.mjs`로 설치 상태를 확인해 주십시오.
+```
+
+Claude Code가 명령을 실행해도 되는지 물으면 허용해 주십시오. Claude가 두 명령을 실행하고 설치 결과와 점검 결과를 알려 줍니다. 그 뒤에 Claude Code를 재시작해 주십시오.
+
+### 직접 설치하기
+
+1. terminal에서 설치할 프로젝트의 root directory로 이동합니다. 프로젝트 root directory에 `.git`이 없으면 설치 script는 `.gitignore` 항목을 추가하지 않고 `commit-msg` hook도 설치하지 않습니다. 새 프로젝트이면 먼저 `git init`을 실행합니다.
+2. 다음 명령을 실행합니다.
+
+   ```sh
+   npx -y github:nerdkim/korean-rewrite --target . --activate
+   node .korean-style/scripts/doctor.mjs
+   ```
+
+   첫 줄은 이 repository를 받아 설치 script를 실행합니다. 둘째 줄의 doctor는 설치 상태를 항목마다 점검하고 점검 결과의 마지막 줄에 `실패 0개, 주의 0개`처럼 개수를 출력합니다. 실패한 항목이 있으면 종료 코드 1로 끝납니다. 해결 방법은 [설치와 사용](docs/usage.md#문제-해결)에 있습니다.
+3. Claude Code를 재시작합니다.
+
+npx를 쓸 수 없으면 repository를 내려받아 설치 script를 직접 실행합니다.
+
+```sh
+git clone --depth 1 https://github.com/nerdkim/korean-rewrite.git /tmp/korean-rewrite
+node /tmp/korean-rewrite/scripts/install.mjs --target "$PWD" --activate
+```
+
+처음 설치할 때 말투 option을 주지 않으면 Claude는 합니다체로 씁니다. 해요체로 쓰게 하려면 설치 명령 끝에 `--register 해요체`를 붙입니다.
+
+`--activate`를 붙이면 프로젝트에서 이미 고른 output style도 `korean-style`로 바뀝니다. 이미 고른 output style을 그대로 두려면 `--activate`를 뺍니다. 다른 option은 [설치와 사용](docs/usage.md#설치-option)에 있습니다.
+
+### 써 보기
+
+Claude Code를 재시작한 뒤 아래 [설치 전후 비교](#설치-전후-비교) 절의 요청을 그대로 보내 주십시오. Claude는 글을 쓰기 전에 `korean-rewrite` skill을 부릅니다. 받은 글은 그 절에 실은 두 답변과 비교해 볼 수 있습니다.
+
+이미 있는 문서를 다듬게 하려면 메시지 맨 앞에 `/korean-rewrite`를 입력합니다. 예를 들어 `/korean-rewrite docs/guide.md를 자연스러운 한국어로 다듬어 주십시오`처럼 입력합니다.
+
+## 설치 전후 비교
+
+아래 메모를 주고 팀 기술 블로그에 올릴 짧은 글을 써 달라고 Claude에게 요청했습니다. 요청은 이 도구가 없는 프로젝트와 이 도구를 설치한 프로젝트에서 각각 두 번 보냈습니다. 아래 표에는 프로젝트마다 첫 번째 답변을 글자 그대로 실었습니다.
 
 **요청**
 
 <!-- korean-style-quote -->
 
-> 아래 변경 내용으로 커밋 메시지를 써 줘.  
+> 아래 메모로 팀 기술 블로그에 올릴 짧은 글을 써 줘.  
 >
-> - 로그인 API에 rate limit 추가 (IP당 분당 10회)  
-> - 한도를 넘으면 429 반환  
-> - rate limit 테스트 추가  
+> - 주문 목록 API 응답 시간이 평균 1.2초였음  
+> - 원인: 주문마다 상품 정보를 따로 조회하는 N+1 쿼리  
+> - 상품 정보를 한 번에 가져오도록 쿼리를 고치고, 자주 조회하는 상품 정보는 Redis에 캐시함  
+> - 평균 응답 시간이 180ms로 줄어듦  
+> - 남은 과제: 상품 정보가 바뀌면 캐시를 언제 지울지 정해야 함  
 
 <!-- /korean-style-quote -->
 
@@ -39,29 +102,69 @@ commit 메시지를 써 달라는 요청을 이 도구가 없는 프로젝트와
 
 <!-- korean-style-quote -->
 
+> # 주문 목록 API 응답 시간을 1.2초에서 180ms로 줄인 이야기  
+>
+> ## 문제: 느린 주문 목록 API  
+>
+> 주문 목록 API의 평균 응답 시간은 1.2초였습니다. 목록 하나를 불러오는 데 1초가 넘게 걸리니 사용자도 지연을 바로 느낄 수 있었습니다.  
+>
+> ## 원인: N+1 쿼리  
+>
+> 원인은 전형적인 **N+1 쿼리**였습니다. 주문 목록을 한 번 조회한 뒤, 각 주문에 들어 있는 상품 정보를 주문마다 따로 조회하고 있었습니다.  
+>
+> ```sql
+> -- 주문 목록 조회 (1번)
+> SELECT * FROM orders WHERE ...;
+>
+> -- 주문마다 상품 정보 조회 (N번)
+> SELECT * FROM products WHERE id = ?;
+> SELECT * FROM products WHERE id = ?;
+> ...
 > ```
-> 로그인 API에 IP별 rate limit 추가
 >
-> 로그인 엔드포인트에 IP별 요청 제한(분당 10회)을 적용한다.
-> 한도를 넘은 요청에는 429 Too Many Requests를 반환한다.
+> 주문이 많을수록 쿼리 수도 그만큼 늘어나서 응답 시간이 길어졌습니다.  
 >
-> - 로그인 API에 IP 기반 rate limit 적용 (분당 10회)
-> - 한도 초과 시 429 응답 반환
-> - rate limit 동작 테스트 추가
+> ## 해결: 쿼리 정리와 Redis 캐시  
+>
+> 두 가지를 바꿨습니다.  
+>
+> **1. 상품 정보를 한 번에 조회**  
+>
+> 주문마다 상품을 따로 조회하지 않고, 필요한 상품 정보를 쿼리 한 번으로 모두 가져오도록 고쳤습니다.  
+>
+> ```sql
+> SELECT * FROM products WHERE id IN (?, ?, ?, ...);
 > ```
 >
-> 영어로 쓰는 저장소라면 아래 버전을 쓰시면 됩니다.  
+> 이제 주문 수가 늘어도 쿼리 수는 늘어나지 않습니다.  
 >
-> ```
-> Add per-IP rate limiting to login API
+> **2. 자주 조회하는 상품 정보를 Redis에 캐시**  
 >
-> Limit login requests to 10 per minute per IP address.
-> Requests over the limit receive a 429 Too Many Requests response.
+> 여러 주문에서 반복해서 조회되는 상품 정보는 Redis에 캐시했습니다. 캐시에 있는 상품은 DB를 거치지 않고 바로 응답합니다.  
 >
-> - Apply IP-based rate limit (10 req/min) to login endpoint
-> - Return 429 when the limit is exceeded
-> - Add tests for rate limiting behavior
-> ```
+> ## 결과  
+>
+> | 항목 | 개선 전 | 개선 후 |  
+> |---|---|---|  
+> | 평균 응답 시간 | 1.2초 | 180ms |  
+>
+> 평균 응답 시간이 **1.2초에서 180ms로 약 85% 줄었습니다.**  
+>
+> ## 남은 과제: 캐시는 언제 지울까  
+>
+> 캐시를 도입하면서 새로운 문제가 생겼습니다. 상품 정보가 바뀌었을 때 **캐시를 언제 지울지** 아직 정하지 않았습니다. 이 부분을 정하지 않으면 사용자가 바뀌기 전의 가격이나 상품명을 보게 될 수 있습니다.  
+>
+> 검토 중인 방법은 다음과 같습니다.  
+>
+> - **상품 수정 시점에 캐시 삭제**: 데이터가 가장 정확하지만, 상품을 수정하는 모든 경로에서 캐시를 지워야 합니다.  
+> - **TTL(만료 시간) 설정**: 구현이 간단하지만, 만료 전까지는 이전 정보가 보일 수 있습니다.  
+> - **두 방법 함께 쓰기**: 수정 시점에 캐시를 지우고, 혹시 놓친 경우를 대비해 TTL도 함께 둡니다.  
+>
+> 어떤 방식을 골랐고 운영해 보니 어땠는지는 다음 글에서 공유하겠습니다.  
+>
+> ---  
+>
+> 메모에 없는 내용인 SQL 예시와 캐시 무효화 방법 세 가지는 글의 흐름을 위해 넣었습니다. 85%는 메모의 수치(1.2초 → 180ms)로 계산한 값입니다. 실제 사용하는 ORM 코드나 이미 검토한 방법이 있으면 그 내용으로 바꿔 주세요.  
 
 <!-- /korean-style-quote -->
 
@@ -70,13 +173,21 @@ commit 메시지를 써 달라는 요청을 이 도구가 없는 프로젝트와
 
 <!-- korean-style-quote -->
 
-> ```
-> feat: login API에 rate limit 추가
+> # 주문 목록 API 응답 시간을 1.2초에서 180ms로 줄였습니다  
 >
-> login API 요청 수를 IP마다 분당 10회로 제한합니다.
-> 한도를 넘은 요청에는 429를 반환합니다.
-> rate limit test를 추가했습니다.
-> ```
+> 주문 목록 API의 평균 응답 시간이 1.2초였습니다. 원인은 주문마다 상품 정보를 따로 조회하는 N+1 query였습니다. 주문 목록을 조회한 뒤 주문 수만큼 상품 query를 추가로 실행했습니다. 그래서 주문이 많을수록 database를 호출하는 횟수도 늘어났습니다.  
+>
+> ## 개선한 내용  
+>
+> 먼저 상품 정보를 한 번에 가져오도록 query를 수정했습니다. 이제 주문마다 상품을 조회하지 않고 목록에 필요한 상품 정보를 query 한 번으로 가져옵니다. 이와 함께 자주 조회하는 상품 정보는 Redis에 cache했습니다.  
+>
+> ## 결과  
+>
+> 평균 응답 시간이 1.2초에서 180ms로 줄었습니다.  
+>
+> ## 남은 과제  
+>
+> 상품 정보가 바뀌었을 때 cache를 언제 지울지 아직 정하지 않았습니다. 이 부분은 앞으로 정해야 합니다.  
 
 <!-- /korean-style-quote -->
 
@@ -84,9 +195,19 @@ commit 메시지를 써 달라는 요청을 이 도구가 없는 프로젝트와
 </tr>
 </table>
 
-- 이 도구가 없는 프로젝트의 답변은 `feat:` 같은 접두어가 없고 본문을 해라체로 썼습니다. code block 뒤에는 `영어로 쓰는 저장소라면 아래 버전을 쓰시면 됩니다.`라는 문장과 영어 commit 메시지를 덧붙였습니다.
-- 설치한 프로젝트의 답변은 `feat: login API에 rate limit 추가`라는 제목과 합니다체 본문 세 문장만 code block에 담았습니다. 앞뒤에는 아무 말도 붙이지 않았습니다.
-- 설치한 프로젝트의 답변에서 Claude는 요청의 `로그인`과 `테스트`를 IT 용어 표기 규칙에 따라 `login`, `test`로 썼습니다.
+아래 목록 가운데 메모에 없는 내용, 덧붙인 말, 표와 굵은 글씨, 말투는 사람이 답변 네 개를 읽고 확인했습니다. 답변 길이, 비용, 시간은 평가 script가 저장한 실행 기록에서 가져왔습니다.
+
+- `메모에 없는 내용`과 `덧붙인 말`은 다음 기준으로 판단했습니다. `메모에 없는 내용`은 메모에 적히지 않은 사실, 수치, 코드를 뜻합니다. `덧붙인 말`은 요청한 글 뒤에 붙인 설명과 제안을 뜻합니다.
+- 이 도구가 없는 프로젝트의 두 답변은 합쳐서 2,484자였습니다. 두 답변 모두 메모에 없는 내용을 넣었습니다. 첫 번째 답변은 SQL 예시 두 개와 cache를 지우는 방법 세 가지를 넣었습니다. 두 번째 답변은 `쿼리 로그를 살펴보니`라는 조사 과정을 넣었고 독자에게 권하는 말을 담은 `## 마치며` 절도 넣었습니다.
+- 이 도구가 없는 프로젝트의 두 답변은 모두 메모의 1.2초와 180ms로 계산한 `약 85%`를 넣었습니다. 두 답변 모두 cache를 지우는 방법을 정한 뒤 다음 글에서 공유하겠다고 썼습니다. 평균 응답 시간 한 줄만 담은 표도 두 답변에 모두 있습니다. 굵은 글씨는 첫 번째 답변에 8번, 두 번째 답변에 6번 썼습니다.
+- 이 도구가 없는 프로젝트의 두 답변은 글 뒤에 가로줄을 긋고 그 아래에 말을 덧붙였습니다. 첫 번째 답변은 메모에 없는 SQL 예시와 방법 세 가지를 넣었다고 밝힌 뒤 실제 코드가 있으면 `그 내용으로 바꿔 주세요`라고 썼습니다. 두 번째 답변은 코드 같은 내용을 알려 주면 `더 구체적으로 다듬어 드릴게요`라고 썼습니다. 인용한 두 구절은 모두 해요체입니다.
+- 이 도구를 설치한 프로젝트의 두 답변은 합쳐서 914자였습니다. Claude는 두 번 모두 답변을 쓰기 전에 `korean-rewrite` skill을 불렀습니다.
+- 이 도구를 설치한 프로젝트의 두 답변은 모두 메모의 다섯 가지만 담았고 글 앞뒤에 아무 말도 붙이지 않았습니다. 표, 굵은 글씨, 코드는 쓰지 않았습니다. 합니다체로만 썼고 `query`, `cache`, `database`는 영어로 썼습니다. Stop hook이 다시 쓰게 한 답변은 없었습니다.
+- 저장한 답변 네 개를 검사기로 검사했습니다. 검사기는 이 도구가 없는 프로젝트의 첫 번째 답변에서 해요체 어미 `주세요`를 오류로 찾았습니다. 두 번째 답변의 `드릴게요`도 해요체이지만 검사기는 찾지 못했습니다. 두 답변 모두에서 `쿼리`, `캐시`, `데이터` 같은 IT 용어의 한글 음차를 경고로 찾았습니다. 이 도구를 설치한 프로젝트의 두 답변에서는 오류도 경고도 나오지 않았습니다.
+- 이 도구를 설치한 프로젝트가 비용이 더 들었습니다. 처음 보낸 요청에서 답변 하나에 든 비용은 이 도구가 없는 프로젝트가 0.095달러, 설치한 프로젝트가 0.257달러였습니다. 같은 요청을 다시 보냈을 때는 0.027달러와 0.177달러였습니다. 답변 하나를 받는 데 걸린 평균 시간은 이 도구가 없는 프로젝트가 15.0초, 설치한 프로젝트가 14.6초였습니다.
+- 요청은 Claude Opus 5.5(`claude-opus-5-5`)에 보냈습니다. Claude Code 2.1.310에서 effort를 medium으로 두고 2026년 11월 7일(한국 시간)에 실행했습니다. 요청을 보낼 때마다 새 session을 열었습니다. 두 프로젝트에서 모두 Claude가 쓸 수 있는 도구는 Skill, Read, Bash뿐이었습니다. 설치한 버전은 0.5.0입니다.
+- 요청 원문은 [readme.json](test/fixtures/eval/readme.json)에 있고 다시 실행하는 명령은 [다시 실행하기](docs/examples.md#다시-실행하기)에 있습니다. 답변 길이 합계, 비용, 시간, 검사기가 오류와 IT 용어 음차를 찾은 답변 수는 저장한 결과로 `npm run eval -- --summary`를 실행해 다시 집계할 수 있습니다.
+- 요청 하나로 본 결과이므로 다른 글에서도 같은 차이가 난다고 말할 수 없습니다. 요청 열두 가지로 측정한 결과는 [측정 결과](#측정-결과)에 있습니다.
 
 ## 특징
 
@@ -97,38 +218,6 @@ commit 메시지를 써 달라는 요청을 이 도구가 없는 프로젝트와
 - **요청한 것만 쓰게 합니다.** skill은 머리말, 묻지 않은 제안, 요청에 없는 연도와 예시 코드를 넣지 말라고 지시합니다.
 - **한글이 많은 글은 작성 agent가 씁니다.** 파일, commit 메시지, PR과 issue에 올리는 글에서 한 번에 쓰는 한글이 200자 이상이면 작업하던 Claude는 `korean-writer` agent에게 메모를 넘기고 이 agent가 쓴 글을 받아 사용합니다. 작성 agent가 쓴 글이 Claude가 직접 쓴 글보다 나은지는 아직 측정하지 않았습니다.
 - **검사기가 오류를 찾으면 hook이 막고 요청을 마친 뒤에는 검토 model이 글을 다시 읽습니다.** 검사기는 model이나 network를 쓰지 않으므로 같은 글의 검사 결과가 늘 같습니다. 어색한 문장은 요청을 마친 뒤 검토 model이 잡지만 모두 찾지는 못합니다.
-
-## 설치
-
-Node.js 20 이상, npm, Git, Claude Code가 필요합니다.
-
-Claude Code에서 다음과 같이 요청하면 Claude가 repository를 읽고 설치합니다.
-
-> https://github.com/nerdkim/korean-rewrite repository를 읽고 이 프로젝트에 설치해 주십시오.
-
-직접 설치하려면 프로젝트 root directory에서 다음 명령을 실행합니다.
-
-```sh
-npx -y github:nerdkim/korean-rewrite --target . --activate
-node .korean-style/scripts/doctor.mjs
-```
-
-설치한 뒤에는 Claude Code를 재시작합니다. 말투는 `--register 해요체`처럼 고릅니다. 처음 설치할 때 이 option을 주지 않으면 Claude는 합니다체로 씁니다.
-
-### 설치하면 바뀌는 것
-
-- `.claude/settings.json`에 hook 다섯 개를 추가합니다.
-- `.claude/agents/korean-writer.md`에 작성 agent를 만듭니다.
-- 프로젝트에서 고른 output style이 없으면 `korean-style`을 고릅니다. `--activate`를 붙이면 이미 고른 output style도 `korean-style`로 바꿉니다.
-- `attribution`의 `commit`과 `pr`에 값이 없으면 빈 값을 넣어 생성 표시를 붙이지 않게 합니다.
-- `env`에 `CLAUDE_CODE_THINKING_DISPLAY_UPDATES` 값이 없으면 `0`을 넣습니다.
-- Git repository에는 `commit-msg` hook도 설치합니다.
-
-설치 script는 `attribution`과 `env`에서 프로젝트가 이미 정해 둔 값을 바꾸지 않습니다.
-
-### 다시 설치하기
-
-같은 설치 명령을 다시 실행하면 최신 버전으로 바뀝니다. 0.4.1까지의 기본 규칙은 IT 용어의 한글 음차를 검사하지 않았습니다. 새 기본 규칙에서는 개발자가 읽는 글에 쓴 한글 음차를 검사기가 오류로 잡습니다. 이 도구를 팀에서 쓰는 법과 제거하는 법은 [설치와 사용](docs/usage.md)에 있습니다.
 
 ## 쓰는 법
 
@@ -155,11 +244,26 @@ node .korean-style/scripts/check-korean.mjs --explain translationese
 
 자세한 내용은 [설치와 사용](docs/usage.md)과 [검사 규칙](docs/rules.md)에 있습니다.
 
-## 설치 전후 비교
+## 설치하면 바뀌는 것
+
+- `.claude/settings.json`에 hook 다섯 개를 추가합니다.
+- `.claude/agents/korean-writer.md`에 작성 agent를 만듭니다.
+- 프로젝트에서 고른 output style이 없으면 `korean-style`을 고릅니다. `--activate`를 붙이면 이미 고른 output style도 `korean-style`로 바꿉니다.
+- `attribution`의 `commit`과 `pr`에 값이 없으면 빈 값을 넣어 생성 표시를 붙이지 않게 합니다.
+- `env`에 `CLAUDE_CODE_THINKING_DISPLAY_UPDATES` 값이 없으면 `0`을 넣습니다.
+- Git repository에는 `commit-msg` hook도 설치합니다.
+
+설치 script는 `attribution`과 `env`에서 프로젝트가 이미 정해 둔 값을 바꾸지 않습니다.
+
+## 다시 설치하기
+
+같은 설치 명령을 다시 실행하면 최신 버전으로 바뀝니다. 0.4.1까지의 기본 규칙은 IT 용어의 한글 음차를 검사하지 않았습니다. 새 기본 규칙에서는 개발자가 읽는 글에 쓴 한글 음차를 검사기가 오류로 잡습니다. 이 도구를 팀에서 쓰는 법과 제거하는 법은 [설치와 사용](docs/usage.md)에 있습니다.
+
+## 측정 결과
 
 요청 열두 가지를 Claude Opus 5.5에 보냈습니다. 요청마다 이 도구를 설치한 프로젝트에서 두 번, 설치하지 않은 프로젝트에서 두 번 보냈고 요청을 보낼 때마다 새 session을 열었습니다. Claude Code 2.1.310에서 effort를 medium으로 두고 2026년 11월 6일(한국 시간)에 실행했습니다. 두 프로젝트에서 모두 Claude가 쓸 수 있는 도구는 Skill, Read, Bash뿐이었습니다.
 
-0.4.1을 release한 뒤 skill, output style, 검사 규칙을 개편했습니다. 이 비교에서는 개편한 버전을 설치했습니다. 평가를 실행한 뒤에도 skill과 output style을 고쳤으며 고친 예는 [설치 전후 예시](docs/examples.md)의 앞부분에 있습니다. 작성 agent와 검토 hook도 설치되어 있었지만 이 비교의 답변에는 영향을 주지 않았습니다. 그 이유도 같은 곳에 있습니다.
+0.4.1을 release한 뒤 skill, output style, 검사 규칙을 개편했습니다. 이 측정에서는 개편한 버전을 설치했습니다. 평가를 실행한 뒤에도 skill과 output style을 고쳤으며 고친 예는 [설치 전후 예시](docs/examples.md)의 앞부분에 있습니다. 작성 agent와 검토 hook도 설치되어 있었지만 이 측정에서 받은 답변에는 영향을 주지 않았습니다. 그 이유도 같은 곳에 있습니다.
 
 | 항목 | 이 도구가 없는 프로젝트 | 이 도구를 설치한 프로젝트 |
 | --- | --- | --- |
@@ -200,183 +304,7 @@ node .korean-style/scripts/check-korean.mjs --explain translationese
 - 요청 열두 가지 가운데 다섯 가지는 요청 원문이나 요청이 쓰게 하는 글의 구절이 skill 예문에 그대로 나옵니다. 나머지 일곱 가지 요청의 답변만 집계하면 덧붙인 말이 있는 답변은 이 도구가 없는 프로젝트에서 14개 중 12개, 설치한 프로젝트에서 14개 중 5개였습니다. 요청에 없는 내용이 있는 답변은 이 도구가 없는 프로젝트에서 14개 중 11개, 설치한 프로젝트에서 14개 중 2개였습니다. 그러나 머리말이 있는 답변은 두 프로젝트 모두 14개 중 4개로 차이가 없었습니다.
 - 이 도구는 기술 설명이 맞는지 확인하지 않습니다. 설치한 프로젝트의 답변에도 틀린 기술 설명이 있었습니다.
 
-### 다른 예시
-
-<details>
-<summary><b>PR review comment 쓰기</b></summary>
-
-**요청**
-
-<!-- korean-style-quote -->
-
-> 동료가 올린 PR에 남길 리뷰 코멘트를 써 줘. 내가 찾은 문제는 두 가지야.  
->
-> - 외부 API 재시도 루프에 최대 횟수가 없어서 API가 계속 실패하면 요청이 끝나지 않음  
-> - catch 블록에서 에러를 로그도 남기지 않고 무시함  
-
-<!-- /korean-style-quote -->
-
-<table>
-<tr>
-<th width="50%">이 도구가 없는 프로젝트</th>
-<th width="50%">이 도구를 설치한 프로젝트</th>
-</tr>
-<tr>
-<td valign="top">
-
-<!-- korean-style-quote -->
-
-> PR에 바로 붙여 넣을 수 있게 두 코멘트로 나눠 썼어요.  
->
-> ---  
->
-> **1. 재시도 루프에 최대 횟수가 없어요**  
->
-> 외부 API 재시도 루프에 종료 조건이 없어서, API가 장애 등으로 계속 실패하면 이 요청이 끝나지 않을 것 같아요. 그동안 요청을 처리하는 스레드나 커넥션을 계속 붙잡고 있게 되고, 장애가 길어지면 실패한 요청이 쌓여서 우리 서비스까지 같이 느려지거나 멈출 수 있어요.  
->
-> 이렇게 바꾸면 좋겠어요.  
-> - 최대 재시도 횟수를 정해 주세요(예: 3회). 넘으면 에러를 던지거나 호출한 쪽에 실패를 알려 주세요.  
-> - 재시도 간격에 지수 백오프를 넣으면 장애 중인 API에 부담도 덜 줄 수 있어요.  
-> - 4xx처럼 다시 보내도 성공할 수 없는 에러는 바로 실패로 처리하면 좋겠어요.  
->
-> ```
-> for attempt in 1..MAX_RETRIES:
->     try:
->         return callApi()
->     catch (e):
->         if attempt == MAX_RETRIES or !isRetryable(e):
->             throw e
->         sleep(baseDelay * 2^(attempt - 1))
-> ```
->
-> ---  
->
-> **2. catch 블록에서 에러를 그냥 무시하고 있어요**  
->
-> 지금은 catch 블록에서 에러를 잡은 뒤 로그도 없이 넘어가고 있어요. 이러면 운영 중에 문제가 생겨도 기록이 남지 않아서 원인을 찾기가 아주 어려워요. 겉으로는 정상처럼 보이는데 데이터가 빠지는 식의 문제로 이어질 수도 있고요.  
->
-> 이렇게 바꾸면 좋겠어요.  
-> - 최소한 에러 메시지와 스택 트레이스를 로그로 남겨 주세요. 요청 ID 같은 관련 정보도 같이 남기면 더 좋아요.  
-> - 여기서 처리할 수 없는 에러라면 다시 던져서 위에서 처리하게 해 주세요.  
-> - 일부러 무시하는 경우라면 왜 무시해도 괜찮은지 주석으로 남겨 주세요.  
->
-> ---  
->
-> 실제 코드의 언어와 쓰고 있는 로깅·재시도 라이브러리를 알려 주시면 예시 코드를 그 코드에 맞게 바꿔 드릴게요.  
-
-<!-- /korean-style-quote -->
-
-</td>
-<td valign="top">
-
-<!-- korean-style-quote -->
-
-> **1. 재시도 loop의 최대 횟수**  
->
-> > 외부 API를 다시 호출하는 loop에 최대 재시도 횟수가 없습니다. 그래서 API가 계속 실패하면 요청이 끝나지 않습니다. 최대 재시도 횟수를 정해 주십시오. 그 횟수를 넘기면 loop를 끝내고 호출한 쪽에 실패를 알리도록 수정해 주십시오.  
->
-> **2. `catch` block에서 오류를 무시하는 문제**  
->
-> > `catch` block이 오류를 잡은 뒤 log를 남기지 않고 그대로 무시합니다. 그래서 이 부분에서 문제가 생겨도 원인을 추적할 수 없습니다. 최소한 오류 내용을 log로 남기도록 수정해 주십시오.  
-
-<!-- /korean-style-quote -->
-
-</td>
-</tr>
-</table>
-
-- 이 도구가 없는 프로젝트의 답변은 `PR에 바로 붙여 넣을 수 있게 두 코멘트로 나눠 썼어요.`라는 해요체 머리말로 시작했고 코멘트도 해요체로만 썼습니다.
-- 이 답변은 사용자가 찾지 않은 지적 두 가지와 pseudo code를 넣었고 끝에는 예시 코드를 바꿔 주겠다는 제안을 덧붙였습니다.
-- 설치한 프로젝트의 답변은 문제마다 제목을 달고 문제, 영향, 고칠 방향만 합니다체로 썼습니다. 다만 같은 요청을 다시 보냈을 때 받은 답변은 `아래 두 코멘트를 해당 코드 줄에 각각 남기시면 됩니다.`라는 머리말로 시작했습니다.
-
-</details>
-
-<details>
-<summary><b>장애 메모로 팀 Slack에 공유할 요약 쓰기</b></summary>
-
-**요청**
-
-<!-- korean-style-quote -->
-
-> 아래 장애 메모로 팀 슬랙 채널에 공유할 요약을 써 줘.  
->
-> - 14:05부터 결제 API가 502 반환  
-> - 원인: 어제 배포에서 DB 커넥션 풀 최대 연결 수가 100이 아니라 10으로 들어감  
-> - 14:32 롤백, 14:40 오류율 정상화  
-> - 장애 동안 결제 요청의 약 3% 실패  
-> - 후속 조치: 커넥션 풀 포화 알림 추가, 배포 파이프라인에 설정값 검증 단계 추가  
-
-<!-- /korean-style-quote -->
-
-<table>
-<tr>
-<th width="50%">이 도구가 없는 프로젝트</th>
-<th width="50%">이 도구를 설치한 프로젝트</th>
-</tr>
-<tr>
-<td valign="top">
-
-<!-- korean-style-quote -->
-
-> 슬랙에 바로 올릴 수 있게 정리했습니다.  
->
-> ---  
->
-> **:rotating_light: [장애 공유] 결제 API 502 오류 (해결 완료)**  
->
-> **요약**  
-> 14:05부터 14:40까지 약 35분 동안 결제 API가 502 오류를 반환했습니다. 14:32에 롤백했고, 14:40에 오류율이 정상으로 돌아왔습니다.  
->
-> **영향**  
-> • 장애 동안 결제 요청의 약 3% 실패  
->
-> **원인**  
-> • 어제 배포에서 DB 커넥션 풀 최대 연결 수가 `100`이 아니라 `10`으로 잘못 들어갔습니다.  
-> • 커넥션이 부족해지면서 요청을 처리하지 못해 502가 발생했습니다.  
->
-> **타임라인**  
-> • 14:05 결제 API 502 발생 시작  
-> • 14:32 롤백  
-> • 14:40 오류율 정상화  
->
-> **후속 조치**  
-> • 커넥션 풀 포화 알림 추가  
-> • 배포 파이프라인에 설정값 검증 단계 추가  
->
-> 궁금한 점은 이 스레드에 남겨 주세요. :pray:  
->
-> ---  
->
-> 메모에 담당자와 후속 조치 완료 예정일이 없어서 넣지 않았습니다. 두 가지를 정해 두셨다면 후속 조치 항목에 함께 적어 두는 게 좋습니다.  
-
-<!-- /korean-style-quote -->
-
-</td>
-<td valign="top">
-
-<!-- korean-style-quote -->
-
-> *[장애 공유] 결제 API 502 오류*  
->
-> • *발생:* 14:05부터 결제 API가 502 오류를 반환했습니다.  
-> • *영향:* 장애 동안 결제 요청의 약 3%가 실패했습니다.  
-> • *원인:* 어제 deploy에서 DB connection pool의 최대 연결 수가 100이 아니라 10으로 설정되었습니다.  
-> • *조치:* 14:32에 rollback했습니다. 14:40에 오류율이 정상으로 돌아왔습니다.  
-> • *후속 조치:* connection pool 포화 알림을 추가하겠습니다. deploy pipeline에도 설정값 검증 단계를 추가하겠습니다.  
-
-<!-- /korean-style-quote -->
-
-</td>
-</tr>
-</table>
-
-- 이 도구가 없는 프로젝트의 답변은 머리말로 시작했고 Slack emoji 코드를 넣었습니다. 원인 항목에는 메모에 없는 설명을 추정이라고 밝히지 않고 넣었습니다. Slack 글 뒤에는 담당자와 완료 예정일을 적어 두라는 문단을 덧붙였습니다.
-- 설치한 프로젝트의 답변은 발생, 영향, 원인, 조치, 후속 조치를 항목 이름으로 붙인 다섯 줄을 합니다체로 썼고 메모에 없는 내용은 넣지 않았습니다.
-- 요청 원문의 `커넥션 풀`, `파이프라인`은 skill 예문에도 나옵니다. 따라서 `connection pool`, `pipeline`이라는 표기는 skill 예문 때문일 수 있습니다.
-
-</details>
-
-나머지 요청과 답변은 [설치 전후 예시](docs/examples.md)에, 다시 실행하는 방법은 [다시 실행하기](docs/examples.md#다시-실행하기)에 있습니다. 숫자는 저장한 결과로 `npm run eval -- --summary`를 실행해 다시 집계할 수 있습니다. 평가를 다시 실행하면 답변이 달라지므로 숫자도 달라질 수 있습니다.
+요청 열두 가지와 요청마다 두 프로젝트에서 받은 첫 번째 답변은 [설치 전후 예시](docs/examples.md)에, 다시 실행하는 방법은 [다시 실행하기](docs/examples.md#다시-실행하기)에 있습니다. 숫자는 저장한 결과로 `npm run eval -- --summary`를 실행해 다시 집계할 수 있습니다. 평가를 다시 실행하면 답변이 달라지므로 숫자도 달라질 수 있습니다.
 
 ## 동작 원리
 

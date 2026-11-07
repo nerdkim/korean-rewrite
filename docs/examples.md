@@ -1,6 +1,6 @@
 # 설치 전후 예시
 
-README의 설치 전후 비교에 쓴 요청 열두 가지와 받은 답변입니다.
+README에 실은 측정 결과를 얻으려고 보낸 요청 열두 가지와 받은 답변입니다.
 
 요청 열두 가지를 Claude Opus 5.5(`claude-opus-5-5`)에 보냈습니다. 요청마다 이 도구를 설치한 프로젝트에서 두 번, 이 도구가 없는 프로젝트에서 두 번 보냈습니다. 요청을 보낼 때마다 새 session을 열었습니다.
 
@@ -826,6 +826,16 @@ npm run eval -- --run --cases test/fixtures/eval/showcase.json --models claude-o
 npm run eval -- --summary .eval/2026-11-06-baseline .eval/2026-11-06-installed
 ```
 
+README의 설치 전후 비교에 실은 답변은 아래 세 명령 가운데 앞의 두 명령으로 받았습니다. 이 두 명령은 유료 API를 호출합니다. 마지막 명령은 저장한 결과만 집계합니다.
+
+```bash
+npm run eval -- --run --cases test/fixtures/eval/readme.json --models claude-opus-5-5 --effort medium --repeat 2 --individual --with-hooks --profiles baseline --out .eval/2026-11-07-readme-baseline
+npm run eval -- --run --cases test/fixtures/eval/readme.json --models claude-opus-5-5 --effort medium --repeat 2 --individual --with-hooks --profiles installed --out .eval/2026-11-07-readme-installed
+npm run eval -- --summary .eval/2026-11-07-readme-baseline .eval/2026-11-07-readme-installed
+```
+
+README의 설치 전후 비교에 쓴 두 평가도 이 절 뒤쪽에 적은 방법대로 새로 만든 설정 directory에서 실행했습니다. 실행하기 전에 `claude -p`를 두 번 실행해 기능 설정을 받아 두었습니다.
+
 `--with-hooks`를 주면 두 프로젝트에서 모두 Claude가 Skill, Read, Bash를 쓸 수 있고 hook과 skill은 이 도구를 설치한 프로젝트에서 실제로 동작합니다. `--with-hooks`를 빼면 실행 조건이 이 문서와 달라집니다. 이때 평가 script는 `--profiles installed`로 만든 프로젝트에도 이 도구를 설치하지 않고 output style만 넣으며 Claude는 두 프로젝트에서 모두 아무 도구도 쓸 수 없습니다.
 
 `--individual`을 주면 요청마다 새 session을 엽니다. 이 option을 빼면 평가 script는 요청을 모두 묶어 한 번에 보냅니다. `--effort`를 주지 않으면 `low`로 실행합니다. 결과는 `--out`에 준 경로에 저장합니다. 이미 결과가 있는 경로를 주면 실행하지 않고 멈춥니다. 이 repository에서는 결과를 `.eval/` 아래에만 두고 commit하지 않습니다.
@@ -835,10 +845,11 @@ npm run eval -- --summary .eval/2026-11-06-baseline .eval/2026-11-06-installed
 - `calque.json`은 한국어로 옮기면 번역투가 나오기 쉬운 영어 문장을 모은 입력이고 번역이 아닌 요청도 세 가지 들어 있습니다. 그 가운데 두 요청은 답변에 영어를 낱말 단위로 옮겨 만든 말이 나오는지 보려고 넣었습니다. 나머지 한 요청에서는 할 일마다 담당자를 적어 둔 영어 메모를 한국어로 정리하게 하고 Claude가 할 일과 담당자를 한 문장에 쓰는지 봅니다.
 - `content.json`은 개인정보 처리방침, 업데이트 소식, README, 장애 안내처럼 공개하는 글을 쓰게 하는 입력이고 요청마다 프로젝트 메모나 영어 문단을 함께 줍니다. 이 입력으로는 독자에게 필요 없는 내부 정보와 개인 정보가 답변에 들어가는지 봅니다. `사본`처럼 영어를 낱말 단위로 옮긴 말이 들어가는지도 봅니다. 일반 독자가 읽는 글에 한글로 적어야 할 `page`, `browser`, `cookie` 같은 영어 낱말이 들어가는지도 봅니다.
 - `native-verb.json`은 항목을 새로 넣는 일과 지표를 구하는 일을 한국어로 쓰게 하는 입력입니다. 요청에는 `추가`, `측정`이라는 말을 넣지 않았습니다. 이 입력으로는 Claude가 영어 `add`와 `measure`를 `더하다`, `재다`로 옮기는지 봅니다. 수를 합치는 영어 문장을 옮기는 요청도 하나 넣었고 이 요청의 답변에서는 `더하다`나 `합하다`를 쓰고 `추가`를 쓰지 않는지 봅니다.
+- `readme.json`은 README의 설치 전후 비교에 쓴 요청 하나를 담은 입력입니다. 메모를 주고 팀 기술 블로그에 올릴 짧은 글을 쓰게 합니다. 이 입력으로는 메모에 없는 내용과 덧붙인 말이 답변에 들어가는지 봅니다.
 
 평가 script는 요청마다 `must`에 적은 낱말이 답변에 없거나 `mustNot`에 적은 표현이 답변에 나오면 제약 위반으로 집계합니다.
 
-이 문서의 결과는 이 평가용으로 새로 만든 설정 directory로 앞의 두 명령을 실행해 얻었습니다. 사용자 설정 directory에 든 내용이 요청에 섞이지 않도록 `CLAUDE_CONFIG_DIR` 환경 변수로 설정 directory를 따로 정했습니다. 앞선 평가에서는 새로 만든 설정 directory로 처음 실행했을 때 system prompt가 다음 실행과 달랐습니다. 이 차이는 Claude Code가 server에서 기능 설정을 아직 받지 못해 생긴 것으로 보입니다. 그래서 이번에도 평가하기 전에 `claude -p`를 두 번 실행해 기능 설정을 받아 두었습니다.
+이 문서의 결과는 이 평가용으로 새로 만든 설정 directory로 `showcase.json`을 쓰는 앞의 두 명령을 실행해 얻었습니다. 사용자 설정 directory에 든 내용이 요청에 섞이지 않도록 `CLAUDE_CONFIG_DIR` 환경 변수로 설정 directory를 따로 정했습니다. 앞선 평가에서는 새로 만든 설정 directory로 처음 실행했을 때 system prompt가 다음 실행과 달랐습니다. 이 차이는 Claude Code가 server에서 기능 설정을 아직 받지 못해 생긴 것으로 보입니다. 그래서 이번에도 평가하기 전에 `claude -p`를 두 번 실행해 기능 설정을 받아 두었습니다.
 
 `--summary`는 같은 요청을 다시 보낸 결과가 있으면 비용을 처음 보낸 요청과 다시 보낸 요청으로 나눠 보여 줍니다. 같은 요청을 다시 보내면 API가 처음 요청 때 cache에 저장해 둔 입력을 다시 읽으므로 비용이 줄어듭니다.
 
