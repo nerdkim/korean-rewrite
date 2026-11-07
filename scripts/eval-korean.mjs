@@ -34,7 +34,7 @@ function stopBlocked(responses) {
 
 /*
  * 저장된 답변을 프로필마다 집계합니다. 사람이 읽고 판단해야 하는 항목은 빼고 검사기와 기록으로 확인할 수 있는 항목만 집계합니다.
- * emoji와 가운뎃점은 인라인 코드만 빼고 찾으므로 코드 블록 안에 있어도 집계합니다.
+ * Emoji와 가운뎃점은 인라인 코드만 빼고 찾으므로 코드 블록 안에 있어도 집계합니다.
  * Stop hook이 다시 쓰게 한 답변은 다시 쓴 글이 저장되므로 다시 쓰게 한 답변 수도 함께 집계합니다.
  * 검사기는 답변에서 IT 용어의 한글 음차와 번역어를 경고로만 보고하므로 이 경고만 나온 답변은 오류를 찾은 답변 수에 들어가지 않습니다. 따라서 음차나 번역어를 찾은 답변은 별도 항목으로 집계합니다. 사용자가 준 글을 다듬은 답변처럼 한글 표기를 그대로 두어야 하는 답변도 이 항목에 들어갑니다.
  */
@@ -85,22 +85,24 @@ export function formatSummary(summary) {
   const profiles = Object.keys(summary);
   if (profiles.length === 0) throw new Error('집계할 답변이 없습니다');
   /* 답변이 없는 프로필은 평균을 낼 수 없으므로 `-` 기호를 씁니다. */
-  const ratio = (p, key, answers, digits, unit) => (summary[p][answers] === 0 ? '-' : `${(summary[p][key] / summary[p][answers]).toFixed(digits)}${unit}`);
+  /* 금액은 `$0.095`처럼 통화 기호를 숫자 앞에 붙이고 다른 단위는 숫자 뒤에 붙입니다. */
+  const withUnit = (value, unit) => (unit === '$' ? `$${value}` : `${value}${unit}`);
+  const ratio = (p, key, answers, digits, unit) => (summary[p][answers] === 0 ? '-' : withUnit((summary[p][key] / summary[p][answers]).toFixed(digits), unit));
   const average = (p, key, digits, unit) => ratio(p, key, 'answers', digits, unit);
   const count = (key) => profiles.map((p) => `${summary[p].answers}개 중 ${summary[p][key]}개`);
   /* 같은 요청을 다시 보낸 결과가 있으면 비용을 두 줄로 나눕니다. 그러면 다시 보낸 요청이 cache를 쓰지 못해 비용이 줄지 않은 경우를 표에서 바로 알아볼 수 있습니다. */
   const cost = profiles.some((p) => summary[p].repeatAnswers > 0)
-    ? [['처음 보낸 요청에서 답변 하나에 든 평균 비용', profiles.map((p) => ratio(p, 'firstCostUsd', 'firstAnswers', 3, '달러'))],
-      ['같은 요청을 다시 보냈을 때 답변 하나에 든 평균 비용', profiles.map((p) => ratio(p, 'repeatCostUsd', 'repeatAnswers', 3, '달러'))]]
-    : [['답변 하나에 든 평균 비용', profiles.map((p) => average(p, 'costUsd', 3, '달러'))]];
+    ? [['처음 보낸 요청에서 답변 하나에 든 평균 비용', profiles.map((p) => ratio(p, 'firstCostUsd', 'firstAnswers', 3, '$'))],
+      ['같은 요청을 다시 보냈을 때 답변 하나에 든 평균 비용', profiles.map((p) => ratio(p, 'repeatCostUsd', 'repeatAnswers', 3, '$'))]]
+    : [['답변 하나에 든 평균 비용', profiles.map((p) => average(p, 'costUsd', 3, '$'))]];
   const lines = [
-    ['skill을 거친 답변', count('skill')],
+    ['Skill을 거친 답변', count('skill')],
     ['Stop hook이 다시 쓰게 한 답변', count('rewritten')],
     ['검사기가 오류를 찾은 답변', count('errors')],
     ['검사기가 해요체 어미를 찾은 답변', count('register')],
     ['검사기가 IT 용어의 한글 음차를 찾은 답변', count('transliteration')],
     ['검사기가 IT 용어의 번역어를 찾은 답변', count('looseTranslation')],
-    ['emoji가 들어간 답변', count('emoji')],
+    ['Emoji가 들어간 답변', count('emoji')],
     ['가운뎃점이 들어간 답변', count('middot')],
     ['Claude Code 생성 표시가 들어간 답변', count('attribution')],
     ['답변 길이 합계', profiles.map((p) => `${summary[p].chars.toLocaleString('en-US')}자`)],
@@ -222,7 +224,7 @@ function main() {
         const prompt = individual ? group[0].prompt : batchPrompt;
         const started = Date.now();
         const liveHooks = withHooks && profile === 'installed';
-        /* --with-hooks를 주면 모든 프로필의 프로젝트에서 Skill, Read, Bash 도구를 켜고 검사기 명령을 허용합니다. skill과 검사기는 이 도구를 설치한 프로젝트에만 있습니다. */
+        /* --with-hooks를 주면 모든 프로필의 프로젝트에서 Skill, Read, Bash 도구를 켜고 검사기 명령을 허용합니다. Skill과 검사기는 이 도구를 설치한 프로젝트에만 있습니다. */
         const tools = withHooks
           ? ['--tools', 'Skill,Read,Bash', '--allowedTools', 'Bash(node .korean-style/scripts/check-korean.mjs:*)']
           : ['--tools', '', '--disable-slash-commands'];

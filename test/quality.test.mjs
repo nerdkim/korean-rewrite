@@ -134,13 +134,13 @@ test('`승인을 묻다`는 경고로 알리고 승인 여부를 묻거나 승�
 test('제목이나 항목 이름이 `왜` 하나뿐인 줄은 경고로 알리고 다른 말이 붙은 제목과 문장 속 `왜`는 알리지 않는다', () => {
   /* 사용자는 Claude가 영어 `Why`를 `왜`로 옮긴 제목을 자주 쓴다고 알려 왔습니다. 팀이 정한 PR template에 이런 제목이 들어 있을 수도 있어서 검사기는 오류로 막지 않고 경고로만 알립니다. */
   const flagged = [
-    '## 왜\n\ncache가 비어 요청이 실패했습니다.',
-    '### 왜?\n\ncache가 비었습니다.',
-    '**왜**\n\ncache가 비어 요청이 실패했습니다.',
-    '**왜:** cache가 비어 요청이 실패했습니다.',
-    '- **왜**: cache가 비어 요청이 실패했습니다.',
+    '## 왜\n\nCache가 비어 요청이 실패했습니다.',
+    '### 왜?\n\nCache가 비었습니다.',
+    '**왜**\n\nCache가 비어 요청이 실패했습니다.',
+    '**왜:** Cache가 비어 요청이 실패했습니다.',
+    '- **왜**: Cache가 비어 요청이 실패했습니다.',
     '- 왜: cache가 비어 요청이 실패했습니다.',
-    '| 바꾼 내용 | 왜 |\n| --- | --- |\n| cache를 비웁니다 | 요청이 실패했습니다 |',
+    '| 바꾼 내용 | 왜 |\n| --- | --- |\n| Cache를 비웁니다 | 요청이 실패했습니다 |',
   ];
   for (const target of ['chat', 'doc', 'commit']) {
     for (const text of flagged) {
@@ -277,12 +277,12 @@ test('저장된 평가 결과를 프로필마다 항목별로 집계해 README�
   assert.equal(summary.installed.looseTranslation, 1);
   const table = formatSummary(summary);
   assert.match(table, /^\| 항목 \| 이 도구가 없는 프로젝트 \| 이 도구를 설치한 프로젝트 \|$/m);
-  assert.match(table, /^\| skill을 거친 답변 \| 2개 중 0개 \| 2개 중 2개 \|$/m);
+  assert.match(table, /^\| Skill을 거친 답변 \| 2개 중 0개 \| 2개 중 2개 \|$/m);
   assert.match(table, /^\| Stop hook이 다시 쓰게 한 답변 \| 2개 중 0개 \| 2개 중 1개 \|$/m);
   assert.match(table, /^\| 검사기가 오류를 찾은 답변 \| 2개 중 2개 \| 2개 중 0개 \|$/m);
   assert.match(table, /^\| 검사기가 IT 용어의 한글 음차를 찾은 답변 \| 2개 중 2개 \| 2개 중 0개 \|$/m);
   assert.match(table, /^\| 검사기가 IT 용어의 번역어를 찾은 답변 \| 2개 중 0개 \| 2개 중 1개 \|$/m);
-  assert.match(table, /^\| 답변 하나에 든 평균 비용 \| 0\.050달러 \| 0\.090달러 \|$/m);
+  assert.match(table, /^\| 답변 하나에 든 평균 비용 \| \$0\.050 \| \$0\.090 \|$/m);
   assert.doesNotMatch(table, /처음 보낸 요청|다시 보냈을 때/, '같은 요청을 다시 보낸 기록이 없으면 비용을 나누지 않습니다');
   assert.match(table, /^\| 답변 하나를 받는 데 걸린 평균 시간 \| 11\.0초 \| 16\.0초 \|$/m);
 });
@@ -296,12 +296,12 @@ test('같은 요청을 다시 보낸 결과가 있으면 처음 보낸 요청과
     { profile: 'installed', run: 2, skills: ['korean-rewrite'], costUsd: 0.11, seconds: 13, answers: [{ id: 'a', text: '확인했습니다.' }] },
   ];
   const table = formatSummary(summarize(rows, rules));
-  assert.match(table, /^\| 처음 보낸 요청에서 답변 하나에 든 평균 비용 \| 0\.040달러 \| 0\.120달러 \|$/m);
-  assert.match(table, /^\| 같은 요청을 다시 보냈을 때 답변 하나에 든 평균 비용 \| 0\.010달러 \| 0\.110달러 \|$/m);
+  assert.match(table, /^\| 처음 보낸 요청에서 답변 하나에 든 평균 비용 \| \$0\.040 \| \$0\.120 \|$/m);
+  assert.match(table, /^\| 같은 요청을 다시 보냈을 때 답변 하나에 든 평균 비용 \| \$0\.010 \| \$0\.110 \|$/m);
   assert.doesNotMatch(table, /^\| 답변 하나에 든 평균 비용 \|/m, '비용을 나눠 실었으면 합친 평균은 싣지 않습니다');
   /* 같은 요청을 다시 보낸 결과가 한 프로필에만 있으면 다른 프로필의 칸에는 `-` 기호를 씁니다. */
   const partial = formatSummary(summarize(rows.slice(0, 3), rules));
-  assert.match(partial, /^\| 같은 요청을 다시 보냈을 때 답변 하나에 든 평균 비용 \| 0\.010달러 \| - \|$/m);
+  assert.match(partial, /^\| 같은 요청을 다시 보냈을 때 답변 하나에 든 평균 비용 \| \$0\.010 \| - \|$/m);
 });
 
 test('평가 결과를 집계할 때 답변이 없는 프로필과 잘못된 입력을 그대로 표에 싣지 않고 프로필 이름이 `__proto__`여도 다른 객체를 건드리지 않는다', () => {
@@ -321,7 +321,7 @@ test('session마다 system prompt에 들어가는 output style의 분량을 제�
 });
 
 test('output style에는 처음부터 한국어로 생각하라는 지시와 생성 표시를 넣지 말라는 지시가 들어 있다', () => {
-  /* output style이 영어이거나 어느 언어로 생각할지 적혀 있지 않으면 Claude는 영어로 구상한 뒤 한국어로 옮기기 쉽습니다. */
+  /* Output style이 영어이거나 어느 언어로 생각할지 적혀 있지 않으면 Claude는 영어로 구상한 뒤 한국어로 옮기기 쉽습니다. */
   const style = readFileSync(new URL('../output-styles/korean-style.md', import.meta.url), 'utf8');
   assert.match(style, /한국어로 생각합니다/);
   assert.match(style, /Generated with \[Claude Code\]/);
@@ -347,7 +347,7 @@ test('skill에는 프로그램이 하는 일과 Claude가 할 일을 행위자 �
 });
 
 test('skill에는 영어 `Why`를 옮긴 `왜` 제목을 그 절에 담은 내용이 드러나는 이름으로 고치라는 지시가 들어 있다', () => {
-  /* 검사기는 `왜` 하나만 쓴 제목과 항목 이름을 경고로만 알립니다. hook은 경고 때문에 답변을 다시 쓰게 하지 않으므로 skill에서 이 지시가 빠지면 안 됩니다. */
+  /* 검사기는 `왜` 하나만 쓴 제목과 항목 이름을 경고로만 알립니다. Hook은 경고 때문에 답변을 다시 쓰게 하지 않으므로 skill에서 이 지시가 빠지면 안 됩니다. */
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(skill, /영어 제목과 항목 이름을 낱말 그대로 옮긴 것/);
   assert.match(skill, /`## 왜` → `## 문제 및 원인`/);

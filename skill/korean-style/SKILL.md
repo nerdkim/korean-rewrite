@@ -5,7 +5,7 @@ description: 한국어 검사 규칙을 확인하거나 바꿀 때와 어색한 
 
 # 한국어 검사 규칙 확인
 
-output style은 `.claude/output-styles/korean-style.md`에 있습니다. 이미 적용된 session이면 다시 읽지 않습니다.
+Output style은 `.claude/output-styles/korean-style.md`에 있습니다. 이미 적용된 session이면 다시 읽지 않습니다.
 
 <!-- register:begin -->
 말투: 합니다체. 서술은 `~합니다`로, 요청은 `~해 주십시오`로 끝냅니다. `~해요`, `~하세요` 같은 해요체를 섞지 않습니다. 예: `cache 무효화 후 재deploy 필요` → `cache를 무효화한 뒤 다시 deploy해야 합니다.`

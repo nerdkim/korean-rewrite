@@ -7,7 +7,7 @@ export const RULE_FENCE = 'korean-style-rules';
 /* 값이 여러 개인 키입니다. */
 const LIST_KEYS = {
   'advisory-rules': 'advisoryRules',
-  /* hook이 Claude에게 알릴 경고 규칙입니다. Claude가 파일을 쓰거나 고칠 때 바뀐 문단에서 이 규칙에 걸리는 표현이 새로 생기면 hook이 알립니다. */
+  /* Hook이 Claude에게 알릴 경고 규칙입니다. Claude가 파일을 쓰거나 고칠 때 바뀐 문단에서 이 규칙에 걸리는 표현이 새로 생기면 hook이 알립니다. */
   'review-rules': 'reviewRules',
   /* 도구에 넘기는 글과 답변에서만 경고로 낮출 규칙입니다. 파일, commit 메시지, PR과 issue에 올리는 글에서는 오류로 둡니다. */
   'chat-advisory-rules': 'chatAdvisoryRules',
@@ -45,6 +45,8 @@ const LIST_KEYS = {
   'reason-endings': 'reasonEndings',
   /* 이유 문장 바로 다음 문장 첫머리에 오면 알릴 접속 부사입니다. */
   'result-adverbs': 'resultAdverbs',
+  /* 첫머리에 소문자로 써도 되는 영어 이름입니다. 이 키가 없는 규칙에서는 첫머리의 영어 소문자를 검사하지 않습니다. */
+  'lowercase-start-exempt': 'lowercaseStartExempt',
 };
 
 /* 찾을 표현과 대신 쓸 후보를 짝지은 매핑 키입니다. */
@@ -73,6 +75,8 @@ const MAP_KEYS = {
   'hanja-words': 'hanjaWords',
   /* 격식 있는 문어체에 쓰지 않는 구어 표현과 대신 쓸 말입니다. */
   'colloquial-words': 'colloquialWords',
+  /* 숫자 뒤에 붙여 쓰면 알릴 통화 단위와 숫자 앞에 대신 붙일 통화 기호입니다. */
+  'currency-symbols': 'currencySymbols',
 };
 
 /* 값이 숫자 하나인 키입니다. */
@@ -200,6 +204,8 @@ const FALLBACK = {
   translationeseExempt: [],
   reasonEndings: [],
   resultAdverbs: [],
+  /* 키가 없는 예전 규칙이나 읽지 못한 규칙에서는 첫머리의 영어 소문자를 검사하지 않습니다. */
+  lowercaseStartExempt: null,
   bannedTransliteration: new Map(),
   ambiguousTransliteration: new Map(),
   bannedTranslation: new Map(),
@@ -214,6 +220,7 @@ const FALLBACK = {
   inclusiveTerms: new Map(),
   hanjaWords: new Map(),
   colloquialWords: new Map(),
+  currencySymbols: new Map(),
   chatToolFields: new Map(),
   agentToolFields: new Map(),
   maxContrastPer1k: {},
@@ -292,6 +299,8 @@ function freshRules() {
     translationeseExempt: [],
     reasonEndings: [],
     resultAdverbs: [],
+    /* 키가 없으면 null로 남겨 두고 첫머리의 영어 소문자를 검사하지 않습니다. 값을 비우면 예외 없이 검사합니다. */
+    lowercaseStartExempt: null,
     bannedTransliteration: new Map(),
     ambiguousTransliteration: new Map(),
     bannedTranslation: new Map(),
@@ -306,6 +315,7 @@ function freshRules() {
     inclusiveTerms: new Map(),
     hanjaWords: new Map(),
     colloquialWords: new Map(),
+    currencySymbols: new Map(),
     chatToolFields: new Map(),
     agentToolFields: new Map(),
     maxContrastPer1k: {},
@@ -417,10 +427,12 @@ export function loadRules(docPath) {
   return { ...parseRuleBlock(block[1]), source: docPath, reason: null };
 }
 
-/* 코드 블록 안쪽을 다시 볼 때 쓰는 규칙입니다. 코드 블록에는 명령 출력과 예시 답변처럼 옮겨 적은 글이 많습니다. 따라서 IT 용어 표, 한자어, 구어 낱말, 접속 부사 규칙도 적용하지 않습니다. */
+/* 코드 블록 안쪽을 다시 볼 때 쓰는 규칙입니다. 코드 블록에는 명령 출력과 예시 답변처럼 옮겨 적은 글이 많습니다. 따라서 IT 용어 표, 한자어, 구어 낱말, 접속 부사, 첫머리의 영어 소문자, 금액 표기 규칙도 적용하지 않습니다. */
 export function fenceRules(rules) {
   return {
     ...rules,
+    lowercaseStartExempt: null,
+    currencySymbols: new Map(),
     bannedChar: rules.bannedChar.filter((name) => name !== 'emoji'),
     imperativeEndings: [],
     needsGloss: [],

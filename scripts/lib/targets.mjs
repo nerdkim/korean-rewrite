@@ -9,7 +9,7 @@ export const HUMAN_TARGETS = new Set(['chat']);
 /* 한국어 산문이 들어 있어서 한국어 문법 규칙이 걸리는 종류입니다. */
 export const KOREAN_TARGETS = new Set(['chat', 'doc', 'comment', 'commit']);
 
-/* glob을 정규 표현식으로 바꿉니다. */
+/* Glob을 정규 표현식으로 바꿉니다. */
 export function globToRegExp(glob) {
   let out = '';
   for (let i = 0; i < glob.length; i += 1) {

@@ -16,7 +16,7 @@ const SELF_CHECK_EXEMPT = {
   'gate.mjs': 'gate는 검사기와 설치 script의 자체 검사를 실행하는 script이므로 --self-check를 두면 자기 자신을 검사하게 됩니다.',
 };
 
-/* hook은 Claude Code가 stdin으로 주는 JSON이나 Git이 넘겨 주는 메시지 파일을 받으므로 `--self-check` option이 없습니다. */
+/* Hook은 Claude Code가 stdin으로 주는 JSON이나 Git이 넘겨 주는 메시지 파일을 받으므로 `--self-check` option이 없습니다. */
 const HOOK_DIR = 'hooks';
 
 /* 실행할 test 파일입니다. */
@@ -103,7 +103,7 @@ function main() {
     const doc = relative(ROOT, rulesDocPath(ROOT));
     results.push(['규칙 문서 검사', run('규칙 문서 검사', [script('check-korean.mjs'), '--file', doc])]);
     results.push(['전체 파일 검사', run('전체 파일 검사', [script('check-korean.mjs'), '--all'])]);
-    /* test 파일 이름을 하나씩 적지 않고 test/에서 찾습니다. */
+    /* Test 파일 이름을 하나씩 적지 않고 test/에서 찾습니다. */
     const tests = testFiles();
     if (tests === null) {
       /* 건너뛰었다는 사실을 반드시 출력합니다. */

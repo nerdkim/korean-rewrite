@@ -12,7 +12,7 @@ const RULES = loadRules(join(ROOT, 'docs', 'rules.md'));
 const RULE = 'adverb-after-reason';
 const caught = (text, rules = RULES, target = 'doc') => checkText(text, rules, target).filter((v) => v.rule === RULE);
 
-/* skill에 고칠 문장으로 든 예문입니다. 결론의 근거인 첫 문장과 결론 사이에 이유 문장이 끼었습니다. */
+/* Skill에 고칠 문장으로 든 예문입니다. 결론의 근거인 첫 문장과 결론 사이에 이유 문장이 끼었습니다. */
 const SPEC_EXAMPLE = 'Haiku 4.5 ID로 보낸 요청도 Sonnet 5로 호출합니다. 서울에는 Haiku model이 없기 때문입니다. 그래서 서비스는 model ID를 바꾸지 않아도 됩니다.';
 
 test('이유 문장 바로 뒤 문장을 `그래서`로 시작하면 경고로 알리고 `따라서`로 잇는 방법을 안내한다', () => {
@@ -36,7 +36,7 @@ test('`때문이다`, `때문이에요`로 끝난 이유 문장과 쉼표를 찍
 });
 
 test('실제 원인과 결과를 잇는 `그래서`도 이유 문장 바로 뒤에 오면 경고는 나오지만 막지는 않는다', () => {
-  const found = checkText('test server가 멈췄기 때문입니다. 그래서 deploy가 하루 늦어졌습니다.', RULES, 'doc');
+  const found = checkText('Test server가 멈췄기 때문입니다. 그래서 deploy가 하루 늦어졌습니다.', RULES, 'doc');
   assert.equal(found.filter((v) => v.rule === RULE).length, 1);
   assert.equal(blockingViolations(found).length, 0);
 });

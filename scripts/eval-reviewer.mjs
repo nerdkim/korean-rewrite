@@ -81,7 +81,7 @@ export function formatReviewerSummary(summary, meta = {}) {
   lines.push(`번역투가 든 문장을 ${summary.english.judged}번 보냈고 검토 model은 ${caught}.`);
   lines.push(`자연스러운 문장을 ${summary.natural.judged}번 보냈고 검토 model은 ${wrong}.`);
   lines.push(`어느 문장을 가리키는지 알 수 없는 지적은 ${summary.unknown}개입니다.`);
-  lines.push(`묶음 하나에 든 비용은 평균 ${summary.costPerCall.toFixed(4)}달러이고 묶음 하나에 답하는 데 걸린 시간의 중앙값은 ${summary.apiMedianSeconds.toFixed(1)}초입니다.`);
+  lines.push(`묶음 하나에 든 비용은 평균 $${summary.costPerCall.toFixed(4)}이고 묶음 하나에 답하는 데 걸린 시간의 중앙값은 ${summary.apiMedianSeconds.toFixed(1)}초입니다.`);
   lines.push('문장마다 지적한 횟수는 다음과 같습니다.');
   for (const [id, item] of Object.entries(summary.items)) lines.push(`- ${id} (${item.kind}): ${item.judged}번 가운데 ${item.flagged}번`);
   return lines.join('\n');

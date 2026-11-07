@@ -9,7 +9,7 @@ import { agentTranscriptPath, currentTurn, lastUserPrompt } from '../lib/skill.m
 
 const PROJECT_ROOT = projectRoot();
 
-/* subagent의 transcript에서 항목을 모두 읽어 돌려줍니다. 읽지 못하면 null을 돌려줍니다. */
+/* Subagent의 transcript에서 항목을 모두 읽어 돌려줍니다. 읽지 못하면 null을 돌려줍니다. */
 export function allEntries(path) {
   let raw;
   try {

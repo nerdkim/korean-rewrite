@@ -2,10 +2,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/* skill을 부르지 않아 hook이 막을 때 넣는 문구입니다. 같은 요청에서 막은 횟수를 집계할 때도 씁니다. */
+/* Skill을 부르지 않아 hook이 막을 때 넣는 문구입니다. 같은 요청에서 막은 횟수를 집계할 때도 씁니다. */
 export const SKILL_MISSING = 'skill을 부르지 않았습니다';
 
-/* hook이 같은 요청에서 이만큼 막았는데도 Claude가 skill을 부르지 않으면 hook은 Skill 도구를 쓸 수 없는 환경으로 보고 더 막지 않습니다. */
+/* Hook이 같은 요청에서 이만큼 막았는데도 Claude가 skill을 부르지 않으면 hook은 Skill 도구를 쓸 수 없는 환경으로 보고 더 막지 않습니다. */
 export const MAX_SKILL_DENIALS = 2;
 
 /* 글에 든 한글 음절 수입니다. */
@@ -20,7 +20,7 @@ export function skillInstalled(projectRoot, name) {
 
 /*
  * 사용자가 직접 보낸 메시지인지 봅니다. 도구 결과와 skill 본문은 Claude Code가 사용자 메시지로 넣은 줄이라 제외합니다.
- * background agent가 끝났다는 알림도 `origin.kind`가 `task-notification`인 사용자 메시지로 기록되므로 제외합니다. 그래야 알림을 받은 뒤에 쓰는 글도 agent를 부른 요청 안에서 쓴 글로 봅니다. 이 기록 형식은 Claude Code 2.1.310에서 확인했습니다.
+ * Background agent가 끝났다는 알림도 `origin.kind`가 `task-notification`인 사용자 메시지로 기록되므로 제외합니다. 그래야 알림을 받은 뒤에 쓰는 글도 agent를 부른 요청 안에서 쓴 글로 봅니다. 이 기록 형식은 Claude Code 2.1.310에서 확인했습니다.
  */
 function isUserPrompt(entry) {
   if (entry?.type !== 'user' || entry.isMeta === true) return false;
@@ -29,7 +29,7 @@ function isUserPrompt(entry) {
   return !(Array.isArray(content) && content.length > 0 && content.every((part) => part?.type === 'tool_result'));
 }
 
-/* transcript를 끝에서부터 읽다가 `stop`이 참을 돌려주는 항목을 만나면 멈추고, 그 항목 뒤의 항목을 순서대로 돌려줍니다. 파일을 읽지 못하면 null을 돌려줍니다. */
+/* Transcript를 끝에서부터 읽다가 `stop`이 참을 돌려주는 항목을 만나면 멈추고, 그 항목 뒤의 항목을 순서대로 돌려줍니다. 파일을 읽지 못하면 null을 돌려줍니다. */
 function entriesAfter(transcriptPath, stop) {
   let raw;
   try {
@@ -54,7 +54,7 @@ function entriesAfter(transcriptPath, stop) {
   return entries.reverse();
 }
 
-/* transcript에서 이번 요청의 항목을 순서대로 돌려줍니다. 파일을 읽지 못하면 null을 돌려줍니다. */
+/* Transcript에서 이번 요청의 항목을 순서대로 돌려줍니다. 파일을 읽지 못하면 null을 돌려줍니다. */
 export function currentTurn(transcriptPath) {
   return entriesAfter(transcriptPath, isUserPrompt);
 }
@@ -84,7 +84,7 @@ export function lastUserPrompt(transcriptPath) {
   return '';
 }
 
-/* subagent가 도구를 불러도 hook은 main session의 transcript 경로를 받습니다. 따라서 이 함수가 subagent의 transcript 경로를 따로 계산합니다. */
+/* Subagent가 도구를 불러도 hook은 main session의 transcript 경로를 받습니다. 따라서 이 함수가 subagent의 transcript 경로를 따로 계산합니다. */
 export function agentTranscriptPath(transcriptPath, agentId) {
   if (typeof transcriptPath !== 'string' || !transcriptPath.endsWith('.jsonl')) return null;
   if (typeof agentId !== 'string' || !/^[\w-]+$/.test(agentId)) return null;
@@ -142,7 +142,7 @@ export function skillDenials(entries) {
 
 /*
  * 한국어를 쓰기 전에 skill을 불러야 하는지 판단합니다.
- * skill이 꺼져 있거나 설치되지 않았거나, 한글이 기준보다 적거나, transcript를 읽지 못하면 요구하지 않습니다.
+ * Skill이 꺼져 있거나 설치되지 않았거나, 한글이 기준보다 적거나, transcript를 읽지 못하면 요구하지 않습니다.
  * Claude가 이 session에서 이미 skill을 불렀거나, 이번 요청에서 작성 agent에게 글을 맡겼거나, hook이 이번 요청에서 정해 둔 횟수만큼 막았을 때도 요구하지 않습니다.
  */
 export function needsSkill({ text, rules, projectRoot, transcriptPath, agentId }) {
@@ -157,7 +157,7 @@ export function needsSkill({ text, rules, projectRoot, transcriptPath, agentId }
   return skillDenials(entries) < MAX_SKILL_DENIALS;
 }
 
-/* skill을 부르라고 요구하는 문구입니다. */
+/* Skill을 부르라고 요구하는 문구입니다. */
 export function skillRequest(name, retry) {
   return `이 session에서 아직 ${name} ${SKILL_MISSING}. 한국어를 쓰기 전에 Skill 도구로 ${name} skill을 부르고 그 절차를 따라 ${retry}`;
 }
@@ -165,7 +165,7 @@ export function skillRequest(name, retry) {
 /* 작성 agent에게 글을 맡기지 않아 hook이 막을 때 넣는 문구입니다. 같은 요청에서 막은 횟수를 집계할 때도 씁니다. */
 export const WRITER_MISSING = 'agent에게 글을 맡기지 않았습니다';
 
-/* hook이 같은 요청에서 이만큼 막았는데도 Claude가 작성 agent에게 글을 맡기지 않으면 hook은 Agent 도구를 쓸 수 없는 환경으로 보고 더 막지 않습니다. */
+/* Hook이 같은 요청에서 이만큼 막았는데도 Claude가 작성 agent에게 글을 맡기지 않으면 hook은 Agent 도구를 쓸 수 없는 환경으로 보고 더 막지 않습니다. */
 export const MAX_WRITER_DENIALS = 2;
 
 /* 프로젝트에 이 agent가 설치되어 있는지 봅니다. */
@@ -175,7 +175,7 @@ export function agentInstalled(projectRoot, name) {
 
 /*
  * 이번 요청에서 이 이름의 agent에게 일을 맡겼는지 봅니다. Claude Code 문서에 따르면 2.1.63에서 Task 도구의 이름이 Agent로 바뀌었으므로 두 이름을 모두 봅니다.
- * agent를 찾지 못한 경우처럼 결과가 오류로 끝난 호출은 맡긴 것으로 보지 않습니다. 결과가 아직 기록되지 않은 호출은 맡긴 것으로 봅니다.
+ * Agent를 찾지 못한 경우처럼 결과가 오류로 끝난 호출은 맡긴 것으로 보지 않습니다. 결과가 아직 기록되지 않은 호출은 맡긴 것으로 봅니다.
  */
 export function usedAgent(entries, name) {
   if (typeof name !== 'string' || name.length === 0) return false;
@@ -212,8 +212,8 @@ export function writerDenials(entries) {
 /*
  * 한글이 많은 글을 작성 agent에게 맡겨야 하는지 판단합니다.
  * 기준 길이는 `minHangul`로 받고 주지 않으면 `writer-agent-min-hangul` 값을 씁니다. 기준이 0이면 요구하지 않습니다.
- * agent가 꺼져 있거나 설치되지 않았거나, 한글이 기준보다 적거나, transcript를 읽지 못하면 요구하지 않습니다.
- * subagent가 쓰는 글에도 요구하지 않습니다.
+ * Agent가 꺼져 있거나 설치되지 않았거나, 한글이 기준보다 적거나, transcript를 읽지 못하면 요구하지 않습니다.
+ * Subagent가 쓰는 글에도 요구하지 않습니다.
  * Claude가 이번 요청에 이미 그 agent에게 글을 맡겼거나 hook이 같은 요청에서 정해 둔 횟수만큼 막았을 때도 요구하지 않습니다.
  */
 export function needsWriter({ text, rules, projectRoot, transcriptPath, agentId, minHangul = rules.writerAgentMinHangul }) {

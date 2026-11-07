@@ -1,4 +1,4 @@
-/* hook test입니다. */
+/* Hook test입니다. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -17,7 +17,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RULES = loadRules(join(ROOT, 'docs', 'rules.md'));
 const scratch = () => mkdtempSync(join(tmpdir(), 'korean-style-hook-'));
 
-/* hook을 실제로 띄우고 stdout을 JSON으로 읽습니다. */
+/* Hook을 실제로 띄우고 stdout을 JSON으로 읽습니다. */
 function runHook(script, input) {
   const r = spawnSync('node', [join(ROOT, 'scripts', 'hooks', script)], {
     input: JSON.stringify(input),
@@ -123,7 +123,7 @@ test('규칙을 어긴 문서 쓰기를 거부한다', () => {
 test('규칙을 지킨 문서 쓰기는 통과시킨다', () => {
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Write',
-    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: 'workflow를 확인했습니다.' },
+    tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: 'Workflow를 확인했습니다.' },
   });
   assert.equal(out, null, '통과할 때는 아무것도 출력하지 않습니다');
 });
@@ -164,10 +164,10 @@ test('예전 오류가 남은 파일에서 오류가 없는 문단을 고치는 
 test('예전 오류 문장을 그대로 둔 채 같은 줄이나 같은 문단을 고치는 Edit은 막지 않는다', () => {
   assert.equal(editLegacy('캐시를 비운 뒤 다시 시도합니다.', '캐시를 비운 뒤 다시 시도합니다. 실패하면 알림을 보냅니다.'), null);
   assert.equal(editLegacy('캐시를 비운 뒤 다시 시도합니다.', '캐시를 비운 뒤 다시 시도합니다.\n실패하면 알림을 보냅니다.'), null);
-  /* 한 줄에 남은 예전 오류 두 개 가운데 하나만 고칩니다. 규칙을 끄는 방법을 알리는 안내는 처음 나온 음차의 오류에만 붙으므로 첫 음차를 고치면 남은 음차의 오류로 옮겨 갑니다. hook은 안내가 옮겨 간 오류도 편집 전부터 있던 오류로 봅니다. */
+  /* 한 줄에 남은 예전 오류 두 개 가운데 하나만 고칩니다. 규칙을 끄는 방법을 알리는 안내는 처음 나온 음차의 오류에만 붙으므로 첫 음차를 고치면 남은 음차의 오류로 옮겨 갑니다. Hook은 안내가 옮겨 간 오류도 편집 전부터 있던 오류로 봅니다. */
   const fixedOne = runHookIn({ 'a.md': '캐시를 비우고 서버를 다시 시작합니다.\n' }, {
     tool_name: 'Edit',
-    tool_input: { file_path: 'a.md', old_string: '캐시를', new_string: 'cache를' },
+    tool_input: { file_path: 'a.md', old_string: '캐시를', new_string: 'Cache를' },
   });
   assert.equal(fixedOne, null);
 });
@@ -256,7 +256,7 @@ test('이유 문장 바로 뒤 문장을 `그래서`로 시작하면 쓰기를 �
 });
 
 test('항목을 새로 넣는 일을 문서에 `더하다`로 쓰면 쓰기를 막지 않고 Claude에게 알린다', () => {
-  /* CLAUDE.md에 `버그를 고치면 회귀 테스트를 더합니다.`를 적어 둔 프로젝트에서 Claude는 같은 내용의 규칙을 쓸 때 `회귀 테스트를 더합니다`를 따라 썼습니다. hook은 Claude가 파일을 쓸 때 이런 표현이 있으면 Claude에게 알려 다시 살펴보게 합니다. */
+  /* CLAUDE.md에 `버그를 고치면 회귀 테스트를 더합니다.`를 적어 둔 프로젝트에서 Claude는 같은 내용의 규칙을 쓸 때 `회귀 테스트를 더합니다`를 따라 썼습니다. Hook은 Claude가 파일을 쓸 때 이런 표현이 있으면 Claude에게 알려 다시 살펴보게 합니다. */
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Write',
     tool_input: { file_path: join(ROOT, 'docs', '시험.md'), content: '버그를 고치면 회귀 test를 더합니다.' },
@@ -297,7 +297,7 @@ test('오류가 있으면 경고는 알리지 않고 쓰기를 거부한다', ()
 
 test('commit 메시지와 사용자에게 보내는 질문에서 나온 경고는 Claude에게 알리지 않는다', () => {
   /* 알림은 도구가 실행된 뒤에 도착하므로 이미 끝난 commit이나 보낸 질문은 고칠 수 없습니다. */
-  assert.equal(runHook('pretooluse.mjs', { tool_name: 'Bash', tool_input: { command: 'git commit -m "log 분석 진행을 통해 원인을 찾았습니다"' } }), null);
+  assert.equal(runHook('pretooluse.mjs', { tool_name: 'Bash', tool_input: { command: 'git commit -m "Log 분석 진행을 통해 원인을 찾았습니다"' } }), null);
   assert.equal(runHook('pretooluse.mjs', {
     tool_name: 'AskUserQuestion',
     tool_input: { questions: [{ question: 'log 분석 진행을 통해 확인할까요?', header: '확인' }] },
@@ -400,7 +400,7 @@ test('경고가 많으면 앞의 다섯 건만 보여 주고 나머지 건수를
 });
 
 test('프로젝트 밖의 파일은 검사하지 않는다', () => {
-  /* agent가 컴퓨터 어디에 파일을 쓰든 hook은 실행됩니다. */
+  /* Agent가 컴퓨터 어디에 파일을 쓰든 hook은 실행됩니다. */
   const outside = join(scratch(), 'a.md');
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Write',
@@ -435,7 +435,7 @@ test('사람이 읽는 도구 입력이 규칙을 어기면 거부한다', () =>
 });
 
 test('subagent에게 주는 한국어 prompt가 규칙을 어기면 거부한다', () => {
-  /* output style은 subagent에 적용되지 않습니다. */
+  /* Output style은 subagent에 적용되지 않습니다. */
   const out = runHook('pretooluse.mjs', {
     tool_name: 'Task',
     tool_input: { prompt: '결과가 보여집니다. 보고해 주십시오.', subagent_type: 'code-explorer' },
@@ -580,7 +580,7 @@ test('규칙을 지킨 PR 설명은 통과시킨다', () => {
   assert.equal(out, null);
 });
 
-/* shell 명령으로 파일을 쓰는 경우를 확인하는 test입니다. 전에는 PreToolUse hook이 `Write`와 `Edit` 계열 도구로 쓰는 것만 파일 쓰기로 봤습니다. */
+/* Shell 명령으로 파일을 쓰는 경우를 확인하는 test입니다. 전에는 PreToolUse hook이 `Write`와 `Edit` 계열 도구로 쓰는 것만 파일 쓰기로 봤습니다. */
 
 /* Bash 명령 하나를 hook에 넣고 거부되었는지 돌려줍니다. */
 function bashDenied(command) {

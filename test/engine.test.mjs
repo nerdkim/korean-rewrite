@@ -470,7 +470,7 @@ test('회귀: 자모가 분리된(NFD) 한글을 한국어가 없는 글로 보�
 });
 
 test('subagent prompt의 번역투와 이중피동을 잡는다', () => {
-  /* output style은 subagent에 적용되지 않으므로 prompt만이라도 여기서 검사합니다. */
+  /* Output style은 subagent에 적용되지 않으므로 prompt만이라도 여기서 검사합니다. */
   const r = rulesOf([
     'agent-tool-fields: Task.prompt',
     'translationese-patterns: 에 의하여=~로',

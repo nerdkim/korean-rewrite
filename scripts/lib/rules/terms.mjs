@@ -37,12 +37,55 @@ function formsOf(key) {
     .filter((form) => form.text.length > 0);
 }
 
-/* 이 자리가 글, 줄, 문장의 첫머리인지 봅니다. 줄 앞의 목록 표시, 제목 표시, 인용 표시는 건너뜁니다. */
-function isSentenceStart(text, index) {
+/* 줄 앞의 목록 표시, checkbox, 제목 표시, 인용 표시입니다. */
+const LINE_MARKER = '(?:(?:[-*+]|\\d+[.)])[ \\t]+(?:\\[[ xX]\\][ \\t]+)?|#{1,6}[ \\t]+|>[ \\t]*)';
+
+/* 낱말 바로 앞에 붙는 굵은 글씨, 기울임, link를 여는 표시입니다. */
+const OPENER = '(?:\\*\\*|__|\\*|_|\\[)*';
+
+/* 문장을 끝내는 부호와 그 뒤에 붙는 닫는 따옴표, 괄호, 굵은 글씨 표시입니다. */
+const SENTENCE_END = '[.!?]["\'”’)\\]*_]*';
+
+/* 문장 끝 부호 뒤의 자리입니다. */
+const AFTER_SENTENCE_END = new RegExp(`${SENTENCE_END}[ \\t]+${OPENER}$`, 'u');
+
+/* 표 칸의 첫머리입니다. */
+const CELL_START = new RegExp(`\\|[ \\t]*${OPENER}$`, 'u');
+
+/* `- **이름:** `, `**이름**: `처럼 굵은 글씨로 쓴 항목 이름 바로 뒤입니다. */
+const AFTER_BOLD_LABEL = new RegExp(`^[ \\t]*${LINE_MARKER}*(?:\\*\\*|__)[^\\n]*?(?:[:：](?:\\*\\*|__)|(?:\\*\\*|__)[:：])[ \\t]+${OPENER}$`, 'u');
+
+/* 줄 앞의 표시와 여는 표시만 있는 자리입니다. 첫 번째 capture group은 줄 앞의 표시입니다. */
+const LINE_HEAD = new RegExp(`^[ \\t]*(${LINE_MARKER}*)${OPENER}$`, 'u');
+
+/* 앞 줄이 비었거나 문장, 제목, 표, HTML tag, 가로줄로 끝났는지 봅니다. 그렇지 않으면 이 줄은 앞 문장이 이어지는 줄입니다. */
+function previousLineEnds(text, lineStart) {
+  if (lineStart === 0) return true;
+  const prevStart = text.lastIndexOf('\n', lineStart - 2) + 1;
+  const prev = text.slice(prevStart, lineStart - 1).trim();
+  if (prev.length === 0) return true;
+  if (/^(?:#{1,6}(?:[ \t]|$)|\||<)/u.test(prev) || /[|>]$/u.test(prev) || /^(?:[-*_][ \t]*){3,}$/u.test(prev)) return true;
+  return new RegExp(`(?:${SENTENCE_END}|[:：])$`, 'u').test(prev);
+}
+
+/*
+ * 이 자리가 글, 줄, 문장의 첫머리인지 봅니다. 줄 앞의 목록 표시, 제목 표시, 인용 표시는 건너뜁니다.
+ * `options.strict`가 true이면 표 칸의 첫머리, 굵은 글씨로 쓴 항목 이름 바로 뒤, 첫머리에 놓인 굵은 글씨나 link를 여는 표시 바로 뒤도 첫머리로 봅니다. 대신 앞 줄이 문장을 끝내지 않아 문장이 이어지는 줄에서는 줄의 첫머리를 첫머리로 보지 않습니다.
+ */
+export function isSentenceStart(text, index, options = {}) {
   const lineStart = text.lastIndexOf('\n', index - 1) + 1;
   const head = text.slice(lineStart, index);
-  if (/^[ \t]*(?:(?:[-*+]|\d+[.)])[ \t]+|#{1,6}[ \t]+|>[ \t]*)*$/u.test(head)) return true;
-  return /[.!?]["'”’)\]]*[ \t]+$/u.test(head);
+  if (options.strict !== true) {
+    if (/^[ \t]*(?:(?:[-*+]|\d+[.)])[ \t]+|#{1,6}[ \t]+|>[ \t]*)*$/u.test(head)) return true;
+    return /[.!?]["'”’)\]]*[ \t]+$/u.test(head);
+  }
+  if (AFTER_SENTENCE_END.test(head)) return true;
+  if (/^[ \t]*\|/u.test(head)) return CELL_START.test(head);
+  if (AFTER_BOLD_LABEL.test(head)) return true;
+  const m = LINE_HEAD.exec(head);
+  if (m === null) return false;
+  if (m[1].length > 0) return true;
+  return previousLineEnds(text, lineStart);
 }
 
 /* 따옴표 안을 뺀 글에서 `term-exempt`에 적은 구절이 차지하는 구간입니다. */

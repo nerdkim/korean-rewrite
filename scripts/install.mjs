@@ -26,25 +26,25 @@ const SOURCE_ROOT = resolve(HERE, '..');
 /* 설치할 skill입니다. */
 const SKILL_NAMES = ['korean-style', 'korean-rewrite'];
 
-/* skill 하나를 설치할 경로입니다. */
+/* Skill 하나를 설치할 경로입니다. */
 const skillDirFor = (name) => join('.claude', 'skills', name);
 
 /* .gitignore와 경로 검사에 쓰는 POSIX 형식 skill 경로입니다. */
 const skillDirPosixFor = (name) => `.claude/skills/${name}`;
 
-/* output style을 둘 directory입니다. */
+/* Output style을 둘 directory입니다. */
 const OUTPUT_STYLE_DIR = join('.claude', 'output-styles');
 
 /* .gitignore와 경로 검사에 쓰는 POSIX 형식 output style 경로입니다. */
 const OUTPUT_STYLE_DIR_POSIX = '.claude/output-styles';
 
-/* output style의 이름입니다. */
+/* Output style의 이름입니다. */
 const OUTPUT_STYLE_NAME = 'korean-style';
 
 /* 설치할 agent입니다. */
 const AGENT_NAMES = ['korean-writer'];
 
-/* agent 하나를 설치할 경로입니다. */
+/* Agent 하나를 설치할 경로입니다. */
 const agentPathFor = (name) => join('.claude', 'agents', `${name}.md`);
 
 /* .gitignore와 경로 검사에 쓰는 POSIX 형식 agent 경로입니다. */
@@ -85,7 +85,7 @@ const WORKTREE_INCLUDE = '.worktreeinclude';
 /* settings.json에서 이 도구의 hook 명령을 알아볼 때 찾는 경로입니다. */
 const MARKER = `${INSTALLED_DIR}/scripts/hooks/`;
 
-/* 검토 hook은 background에서 실행됩니다. 검토 model이 파일, commit 메시지, PR과 issue 글에서 고칠 표현을 지적하면 Claude Code가 그 지적을 Claude에게 전달해 작업을 이어 가게 합니다. hook은 검토 model의 답을 `reviewer-timeout`까지 기다리므로 hook의 시간 제한은 그보다 넉넉히 둡니다. */
+/* 검토 hook은 background에서 실행됩니다. 검토 model이 파일, commit 메시지, PR과 issue 글에서 고칠 표현을 지적하면 Claude Code가 그 지적을 Claude에게 전달해 작업을 이어 가게 합니다. Hook은 검토 model의 답을 `reviewer-timeout`까지 기다리므로 hook의 시간 제한은 그보다 넉넉히 둡니다. */
 const REVIEW_HOOK = { script: 'review.mjs', command: hookCommand('review'), asyncRewake: true, timeout: 300 };
 
 const HOOKS = [
@@ -132,16 +132,16 @@ export const REGISTER_FRAGMENTS = {
   혼용: 'honyong.md',
 };
 
-/* skill과 output style에서 말투별 문구가 들어갈 구간입니다. */
+/* Skill과 output style에서 말투별 문구가 들어갈 구간입니다. */
 export const REGISTER_SLOT = /<!-- register:begin -->[\s\S]*?<!-- register:end -->/;
 
-/* skill과 output style의 말투 구간을 고른 말투의 문구로 바꿉니다. */
+/* Skill과 output style의 말투 구간을 고른 말투의 문구로 바꿉니다. */
 export function skillWithRegister(body, fragment) {
   const filled = `<!-- register:begin -->\n${fragment.trim()}\n<!-- register:end -->`;
   return body.replace(REGISTER_SLOT, () => filled);
 }
 
-/* hook 설정을 합칩니다. */
+/* Hook 설정을 합칩니다. */
 export function mergeHookSettings(existing, hooks = HOOKS) {
   const out = { ...(existing ?? {}), hooks: { ...(existing?.hooks ?? {}) } };
   const added = [];
@@ -172,7 +172,7 @@ export function mergeAttribution(settings) {
   return out;
 }
 
-/* server가 요약한 진행 보고가 화면에 나오지 않도록 프로젝트 설정의 `env`에 끄는 값을 넣습니다. 프로젝트가 이미 값을 정해 두었으면 그대로 둡니다. */
+/* Server가 요약한 진행 보고가 화면에 나오지 않도록 프로젝트 설정의 `env`에 끄는 값을 넣습니다. 프로젝트가 이미 값을 정해 두었으면 그대로 둡니다. */
 export function mergeEnv(settings) {
   const out = settings === null || typeof settings !== 'object' ? {} : { ...settings };
   const current = out.env !== null && typeof out.env === 'object' && !Array.isArray(out.env) ? out.env : {};
@@ -293,7 +293,7 @@ function selfCheck() {
   /* 규칙 문서를 Git에서 빼면 repository를 새로 clone한 사람은 그 프로젝트에서 고친 값을 받지 못합니다. */
   report(ignoreOnce.text.includes(`!${INSTALLED_DIR}/rules.md`), '규칙 문서는 Git에서 제외하지 않는다');
 
-  /* directory 자체를 빼면 git이 그 안을 보지 않아서 부정 pattern이 적용되지 않습니다. */
+  /* Directory 자체를 빼면 git이 그 안을 보지 않아서 부정 pattern이 적용되지 않습니다. */
   report(!new RegExp(`^\\${INSTALLED_DIR}/$`, 'm').test(ignoreOnce.text), 'directory 자체가 아니라 그 안의 파일을 Git에서 제외한다');
 
   /* 설치하면서 남의 줄을 지우면 사용자에게 피해를 줍니다. */
@@ -397,7 +397,7 @@ function main() {
       throw new Error(`같은 이름의 기존 파일은 덮어쓰지 않습니다: ${agentPathPosixFor(name)}`);
     }
   }
-  // local 설정은 진단만 합니다. 다른 worktree의 settings.local.json도 바꾸지 않습니다.
+  // Local 설정은 진단만 합니다. 다른 worktree의 settings.local.json도 바꾸지 않습니다.
   console.log(`설치할 프로젝트: ${root}\n말투: ${register}\n${refresh ? '새 기본 규칙을 씁니다.' : '기존 규칙을 그대로 둡니다.'}`);
   if (!refresh) console.log('새 기본 규칙이 필요하면 --force를 붙여 다시 설치해야 합니다. 이때 설치 script가 기존 규칙을 backup합니다.');
   if (backup) console.log(`규칙 backup: ${backup}`);

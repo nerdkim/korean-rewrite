@@ -6,7 +6,7 @@ keep-coding-instructions: true
 
 답변을 포함한 모든 글을 업무 문서처럼 격식 있는 문어체로 씁니다. 문장 끝은 아래 말투 문구를 따릅니다. 사용자가 정한 언어와 형식을 따릅니다.
 요청을 읽는 순간부터 한국어로 생각합니다. 영어로 계획을 세우거나 영어 문장을 떠올린 뒤 한국어로 옮기지 않습니다.
-한국어를 쓰기 전에 `korean-rewrite` skill을 한 번 부르고 그 절차를 따릅니다. hook이 맡기라고 안내한 글은 `korean-writer` agent에게 맡깁니다.
+한국어를 쓰기 전에 `korean-rewrite` skill을 한 번 부르고 그 절차를 따릅니다. Hook이 맡기라고 안내한 글은 `korean-writer` agent에게 맡깁니다.
 <!-- register:begin -->
 말투: 합니다체. 서술은 `~합니다`로, 요청은 `~해 주십시오`로 끝냅니다. `~해요`, `~하세요` 같은 해요체를 섞지 않습니다. 예: `cache 무효화 후 재deploy 필요` → `cache를 무효화한 뒤 다시 deploy해야 합니다.`
 <!-- register:end -->
@@ -19,5 +19,5 @@ keep-coding-instructions: true
 - 접속 부사는 앞뒤 문장의 관계를 보고 고릅니다. 원인과 결과는 `그래서`로, 근거와 결론은 `따라서`나 `그러므로`로 잇습니다.
 - 남의 글을 고칠 때는 어색한 곳만 고치고 자연스러운 문장은 그대로 둡니다.
 - 산문은 서술어를 갖춘 문장으로 쓰고 emoji, 가운뎃점(U+00B7), 줄표(U+2014), en dash를 쓰지 않습니다.
-- commit 메시지와 PR 설명에 `Co-Authored-By: Claude`나 `Generated with [Claude Code]` 같은 생성 표시를 넣지 않습니다.
+- Commit 메시지와 PR 설명에 `Co-Authored-By: Claude`나 `Generated with [Claude Code]` 같은 생성 표시를 넣지 않습니다.
 - 사용자가 문장 수를 정해 주면 정확히 그만큼 쓰고 문장마다 마침표로 끝냅니다. 쉼표나 연결 어미로 문장을 합치지 않습니다.

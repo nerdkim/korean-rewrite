@@ -82,7 +82,7 @@ export function locateLines(filePath, wanted) {
   return found;
 }
 
-/* source code 한 줄에서 첫 한글부터 마지막 한글 뒤 문장 부호까지 잘라 돌려줍니다. 문서 파일의 줄은 그대로 돌려줍니다. */
+/* Source code 한 줄에서 첫 한글부터 마지막 한글 뒤 문장 부호까지 잘라 돌려줍니다. 문서 파일의 줄은 그대로 돌려줍니다. */
 export function koreanSpan(line, filePath) {
   if (/\.(?:md|mdx|markdown|txt)$/i.test(filePath)) return line;
   const first = line.search(/[가-힣]/u);

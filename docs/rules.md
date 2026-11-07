@@ -1,28 +1,28 @@
 # 검사 규칙
 
 검사기는 이 문서의 `korean-style-rules` 블록에서 규칙을 읽습니다. 설치한 프로젝트에서는 `.korean-style/rules.md`가 이 문서를 대신합니다.
-output style은 이 도구 repository의 `output-styles/korean-style.md`에 있고 설치한 프로젝트에서는 `.claude/output-styles/korean-style.md`에 있습니다.
-Claude Code는 session을 시작할 때 output style을 system prompt에 넣습니다. hook은 실행될 때마다 이 문서를 새로 읽습니다. 따라서 Claude가 output style과 이 문서를 직접 읽을 필요는 없습니다.
+Output style은 이 도구 repository의 `output-styles/korean-style.md`에 있고 설치한 프로젝트에서는 `.claude/output-styles/korean-style.md`에 있습니다.
+Claude Code는 session을 시작할 때 output style을 system prompt에 넣습니다. Hook은 실행될 때마다 이 문서를 새로 읽습니다. 따라서 Claude가 output style과 이 문서를 직접 읽을 필요는 없습니다.
 
 ## 오류와 경고
 
-- hook은 commit 메시지나 PR과 issue에 올리는 글에 오류가 있으면 막습니다. 파일은 새로 만들 때 파일 전체의 오류를 막고 기존 파일을 고칠 때는 이번 편집으로 새로 생긴 오류만 막습니다. 기존 파일에 원래 있던 오류는 막지 않으므로 파일에 그대로 남을 수 있습니다. 답변에 오류가 있으면 한 번 다시 쓰게 합니다. 오류로 나눈 규칙은 말투와 표기처럼 프로젝트가 정한 정책입니다.
+- Hook은 commit 메시지나 PR과 issue에 올리는 글에 오류가 있으면 막습니다. 파일은 새로 만들 때 파일 전체의 오류를 막고 기존 파일을 고칠 때는 이번 편집으로 새로 생긴 오류만 막습니다. 기존 파일에 원래 있던 오류는 막지 않으므로 파일에 그대로 남을 수 있습니다. 답변에 오류가 있으면 한 번 다시 쓰게 합니다. 오류로 나눈 규칙은 말투와 표기처럼 프로젝트가 정한 정책입니다.
 - 기본 규칙에서는 `banned-char`에 든 문자를 산문에 쓰면 검사기가 오류로 잡습니다. 가운뎃점(U+00B7)과 줄표(U+2014)도 여기에 듭니다. 나열은 쉼표나 조사로 잇고 덧붙이는 설명은 괄호나 다른 문장으로 씁니다.
 - 검사기는 Claude Code가 commit 메시지와 PR 설명에 붙이는 생성 표시도 오류로 잡습니다. 막을 문구는 `banned-attribution`에 적습니다.
-- 글이 `advisory-rules`에 든 규칙에 걸리면 검사기는 경고로만 보고합니다. CLI는 경고를 보여 줍니다. hook은 경고 때문에 쓰기를 막거나 다시 쓰라고 요구하지 않습니다.
-- `chat-advisory-rules`에 든 규칙은 답변과 도구에 넘기는 글에서만 경고로 보고합니다. 도구에 넘기는 글은 `chat-tool-fields`와 `agent-tool-fields`에 적은 필드에 쓰는 글입니다. 사용자에게 묻는 질문, 계획, 사용자에게 보내는 파일 설명, agent에게 주는 prompt가 여기에 듭니다. 파일, commit 메시지, PR과 issue에 올리는 글에서는 오류로 보고합니다. 기본값은 `transliteration` 하나이고 그 이유는 아래 [IT 용어 표기](#it-용어-표기) 절에 있습니다.
-- PreToolUse hook은 `review-rules`에 든 규칙의 경고를 Claude에게 알립니다. 이때도 쓰기는 막지 않습니다. hook은 이번에 바꾼 문단에서 새로 생긴 경고만 알립니다. 어색하면 고치고 문맥에 맞으면 그대로 두라는 말도 덧붙입니다.
+- 글이 `advisory-rules`에 든 규칙에 걸리면 검사기는 경고로만 보고합니다. CLI는 경고를 보여 줍니다. Hook은 경고 때문에 쓰기를 막거나 다시 쓰라고 요구하지 않습니다.
+- `chat-advisory-rules`에 든 규칙은 답변과 도구에 넘기는 글에서만 경고로 보고합니다. 도구에 넘기는 글은 `chat-tool-fields`와 `agent-tool-fields`에 적은 필드에 쓰는 글입니다. 사용자에게 묻는 질문, 계획, 사용자에게 보내는 파일 설명, agent에게 주는 prompt가 여기에 듭니다. 파일, commit 메시지, PR과 issue에 올리는 글에서는 오류로 보고합니다. 기본값은 `transliteration`, `lowercase-start`, `currency-notation` 세 가지이고 그 이유는 아래 [IT 용어 표기](#it-용어-표기) 절과 [첫머리의 영어 낱말과 금액 표기](#첫머리의-영어-낱말과-금액-표기) 절에 있습니다.
+- PreToolUse hook은 `review-rules`에 든 규칙의 경고를 Claude에게 알립니다. 이때도 쓰기는 막지 않습니다. Hook은 이번에 바꾼 문단에서 새로 생긴 경고만 알립니다. 어색하면 고치고 문맥에 맞으면 그대로 두라는 말도 덧붙입니다.
 - CLI의 종료 코드는 오류가 있으면 1, 사용법이 틀리면 2입니다. 경고만 있으면 0이고 `--strict`를 붙이면 경고만 있어도 1입니다.
-- CLI는 규칙을 읽지 못하면 실패합니다. hook은 규칙을 읽지 못해도 멈추지 않습니다. 이때 hook은 금지 문자, 금지 호칭, 영어로만 쓴 답변, 생성 표시만 검사하고 `writing-skill`의 기본값인 `korean-rewrite` skill을 요구합니다. 규칙을 읽지 못하는 문제는 `doctor`와 `gate`로 확인합니다.
+- CLI는 규칙을 읽지 못하면 실패합니다. Hook은 규칙을 읽지 못해도 멈추지 않습니다. 이때 hook은 금지 문자, 금지 호칭, 영어로만 쓴 답변, 생성 표시만 검사하고 `writing-skill`의 기본값인 `korean-rewrite` skill을 요구합니다. 규칙을 읽지 못하는 문제는 `doctor`와 `gate`로 확인합니다.
 
 ## 한국어를 쓰기 전에 부르는 skill
 
 - Claude는 한국어를 쓰기 전에 이 session에서 `writing-skill`에 적은 skill을 불러야 합니다. 한 번 부르면 같은 session의 다음 요청에서는 다시 부르지 않아도 됩니다. Claude Code 2.1.310은 이미 불러온 skill을 다시 부르면 본문을 다시 넣지 않고 `Skill /korean-rewrite is already loaded above; instructions unchanged.`라는 안내만 대화에 남기기 때문입니다.
-- hook은 transcript에서 마지막으로 대화를 압축한 지점 뒤를 보고, 압축한 적이 없으면 session 처음부터 봅니다. 이번 요청에서 부른 기록은 압축 지점 앞에 있어도 부른 것으로 봅니다. 압축하면 그 앞에서 불러온 skill 본문이 Claude에게 남지 않으므로, 압축 지점 뒤에 부른 기록이 없으면 `invoked_skills` 첨부를 찾습니다. Claude Code가 압축한 뒤 skill 본문을 다시 넣으면 이 첨부가 남습니다. 압축 지점 뒤에 이 첨부가 있고 그 안에 이 skill이 있으면 부른 것으로 봅니다.
-- Claude가 이 session에서 skill을 부르지 않은 채 파일을 쓰거나 commit하거나 PR을 올리려 하면 PreToolUse hook이 막습니다. 이번에 쓰는 내용에 한글이 `writing-skill-min-hangul`에 적은 수 이상 들어 있을 때만 막습니다. skill을 부르지 않은 채 한국어 답변을 마치면 Stop hook이 Claude에게 skill을 부른 뒤 답변을 다시 쓰라고 요구합니다.
+- Hook은 transcript에서 마지막으로 대화를 압축한 지점 뒤를 보고, 압축한 적이 없으면 session 처음부터 봅니다. 이번 요청에서 부른 기록은 압축 지점 앞에 있어도 부른 것으로 봅니다. 압축하면 그 앞에서 불러온 skill 본문이 Claude에게 남지 않으므로, 압축 지점 뒤에 부른 기록이 없으면 `invoked_skills` 첨부를 찾습니다. Claude Code가 압축한 뒤 skill 본문을 다시 넣으면 이 첨부가 남습니다. 압축 지점 뒤에 이 첨부가 있고 그 안에 이 skill이 있으면 부른 것으로 봅니다.
+- Claude가 이 session에서 skill을 부르지 않은 채 파일을 쓰거나 commit하거나 PR을 올리려 하면 PreToolUse hook이 막습니다. 이번에 쓰는 내용에 한글이 `writing-skill-min-hangul`에 적은 수 이상 들어 있을 때만 막습니다. Skill을 부르지 않은 채 한국어 답변을 마치면 Stop hook이 Claude에게 skill을 부른 뒤 답변을 다시 쓰라고 요구합니다.
 - UserPromptSubmit hook은 사용자가 prompt를 보낼 때마다 Claude에게 안내합니다. 이 session에서 skill을 이미 불렀으면 다시 부르지 말고 skill에 적힌 절차를 따르라고 하고, 아직 부르지 않았으면 먼저 부르라고 합니다.
-- subagent가 파일을 쓸 때는 hook이 그 subagent의 transcript에서 skill을 불렀는지 봅니다.
-- hook은 같은 요청에서 skill을 부르지 않았다는 이유로 두 번 막았는데도 Claude가 skill을 부르지 않으면 Skill 도구를 쓸 수 없는 환경이라고 봅니다. 그 뒤로는 이 이유로 막지 않습니다.
+- Subagent가 파일을 쓸 때는 hook이 그 subagent의 transcript에서 skill을 불렀는지 봅니다.
+- Hook은 같은 요청에서 skill을 부르지 않았다는 이유로 두 번 막았는데도 Claude가 skill을 부르지 않으면 Skill 도구를 쓸 수 없는 환경이라고 봅니다. 그 뒤로는 이 이유로 막지 않습니다.
 - `writing-skill:`처럼 값을 비우거나 그 skill이 `.claude/skills/`에 없으면 hook은 skill을 요구하지 않습니다. 직접 고친 예전 규칙처럼 `writing-skill`과 `writing-skill-min-hangul` 키가 아예 없으면 기본값인 `korean-rewrite`와 20을 씁니다.
 - 같은 요청에서 Claude가 작성 agent에게 글을 맡겼으면 hook은 skill을 따로 요구하지 않습니다. 작성 agent의 frontmatter에 이 skill을 미리 불러오도록 적어 두었기 때문입니다.
 
@@ -32,15 +32,15 @@ Claude Code는 session을 시작할 때 output style을 system prompt에 넣습�
 - 답변은 한글이 `writer-agent-answer-min-hangul`에 적은 수 이상일 때만 맡깁니다. 이 값이 0이면 답변은 맡기지 않습니다. 기본 규칙은 이 값을 0으로 두었습니다. 답변까지 맡기면 작업하던 Claude가 메모와 돌려받은 글을 한 번씩 더 출력해야 해서 답이 늦어지기 때문입니다.
 - 사용자가 prompt를 보낼 때마다 UserPromptSubmit hook이 이 agent에게 글을 맡기라고 Claude에게 알립니다.
 - Claude가 그 요청에서 이 agent를 부르지 않은 채 한글이 기준 이상 든 글로 파일을 쓰거나 commit하거나 PR을 올리려 하면 PreToolUse hook이 막습니다. `writer-agent-answer-min-hangul`을 0보다 크게 정했으면 hook은 답변에도 이 agent를 요구합니다. Claude가 이 agent를 부르지 않은 채 한글이 그 수 이상 든 답변을 마치면 Stop hook이 답변을 이 agent에게 맡겨 다시 쓰라고 Claude에게 요구합니다.
-- hook은 이 agent를 불렀는지만 확인하고 돌려받은 글을 그대로 썼는지는 확인하지 않습니다. agent를 찾지 못한 경우처럼 결과가 오류로 끝난 호출은 부른 것으로 보지 않습니다.
-- subagent가 쓰는 글에는 이 agent를 요구하지 않습니다.
-- hook은 같은 요청에서 이 agent를 부르지 않았다는 이유로 두 번 막았는데도 Claude가 이 agent를 부르지 않으면 그 뒤로는 이 이유로 막지 않습니다.
+- Hook은 이 agent를 불렀는지만 확인하고 돌려받은 글을 그대로 썼는지는 확인하지 않습니다. Agent를 찾지 못한 경우처럼 결과가 오류로 끝난 호출은 부른 것으로 보지 않습니다.
+- Subagent가 쓰는 글에는 이 agent를 요구하지 않습니다.
+- Hook은 같은 요청에서 이 agent를 부르지 않았다는 이유로 두 번 막았는데도 Claude가 이 agent를 부르지 않으면 그 뒤로는 이 이유로 막지 않습니다.
 - `writer-agent:`처럼 값을 비우거나 그 agent가 `.claude/agents/`에 없으면 hook은 이 agent를 요구하지 않습니다. 직접 고친 예전 규칙처럼 키가 아예 없으면 기본값인 `korean-writer`, 200, 0을 씁니다.
 
 ## 요청을 마친 뒤 다시 읽는 검토 model
 
 - Claude가 요청을 마칠 때(Stop) 검토 hook이 그 요청에서 Claude가 쓴 한국어를 모아 `reviewer-model`에 적은 model에게 보냅니다. 보내는 글은 파일에 새로 쓴 줄, commit 메시지, PR과 issue에 올린 글, 답변입니다. 답변에는 Claude가 도구를 부르는 사이에 쓴 진행 보고도 들어 있습니다.
-- subagent가 끝날 때(SubagentStop)는 그 subagent가 쓴 파일, commit 메시지, PR과 issue에 올린 글만 보냅니다. 마지막 보고는 보내지 않습니다.
+- Subagent가 끝날 때(SubagentStop)는 그 subagent가 쓴 파일, commit 메시지, PR과 issue에 올린 글만 보냅니다. 마지막 보고는 보내지 않습니다.
 - 소스 파일에서는 주석뿐 아니라 화면 문구 같은 문자열에 든 한국어도 보냅니다. 검사기는 소스 파일에서 주석만 검사하고 hook은 작성 agent를 요구할지 정할 때 주석의 한글만 계산에 넣습니다.
 - 검토 hook이 모은 글 전체의 한글이 `reviewer-min-hangul`에 적은 수보다 적으면 아무것도 보내지 않습니다. 답변은 한글이 `reviewer-answer-min-hangul`에 적은 수보다 적으면 보내지 않습니다. 이 값이 0이면 답변을 늘 보내지 않습니다.
 - 한 번에 보내는 한글의 상한은 `reviewer-max-hangul`입니다. 검토 hook은 조각의 한글을 앞에서부터 합쳐 이 수를 넘으면 그 조각부터는 보내지 않습니다. 첫 조각은 이 수를 넘어도 보냅니다.
@@ -48,22 +48,22 @@ Claude Code는 session을 시작할 때 output style을 system prompt에 넣습�
 - 사용자가 쓴 문장은 Stop에서만 빼고 SubagentStop에서는 빼지 않습니다. 검토 hook은 이 문장을 찾을 때 숫자와 `{count}` 같은 자리 표시를 같은 기호로 바꾸고 공백을 지운 뒤 비교합니다. 따라서 Claude가 숫자를 자리 표시로 바꿔 넣었거나 답변에서 따옴표로 다시 보여 줘도 뺍니다.
 - `stop_hook_active`가 true인 Stop에서는 검토하지 않습니다.
 - 같은 session에서 이미 검토한 도구 호출과 답변은 다시 보내지 않습니다. 검토 hook은 검토 model을 부르기 전에 기록하므로 호출이 실패해도 같은 글을 다시 보내지 않습니다.
-- 파일, commit 메시지, PR과 issue에 올린 글에 대한 지적이 있으면 검토 hook이 종료 코드 2로 끝나고 Claude Code가 그 지적을 Claude에게 전달해 작업을 이어 가게 합니다. 알림은 Claude에게 지적이 맞고 고쳐도 뜻이 바뀌지 않으면 파일은 그 줄을 고치라고 합니다. commit 메시지는 아직 push하지 않았을 때만 고쳐 다시 commit하라고 합니다. PR과 issue에 올린 글은 고치지 말고 지적만 사용자에게 알리라고 합니다.
+- 파일, commit 메시지, PR과 issue에 올린 글에 대한 지적이 있으면 검토 hook이 종료 코드 2로 끝나고 Claude Code가 그 지적을 Claude에게 전달해 작업을 이어 가게 합니다. 알림은 Claude에게 지적이 맞고 고쳐도 뜻이 바뀌지 않으면 파일은 그 줄을 고치라고 합니다. Commit 메시지는 아직 push하지 않았을 때만 고쳐 다시 commit하라고 합니다. PR과 issue에 올린 글은 고치지 말고 지적만 사용자에게 알리라고 합니다.
 - 알림은 Claude에게 고쳤으면 무엇을 고쳤는지, 고치지 않았으면 그 이유를 사용자에게 한 문장으로 알리라고 합니다. 사용자에게 무엇을 읽거나 하라고 요청하지 말라고도 합니다. 알림에는 지적을 8개까지 싣습니다.
 - 답변에 대한 지적은 Claude에게 바로 전달하지 않습니다. 검토 hook이 지적을 session마다 임시 directory에 저장해 두면 다음 요청 때 UserPromptSubmit hook이 그 지적을 Claude에게만 알리고 지웁니다. 이 알림은 Claude에게 이번 답변부터 같은 표현을 쓰지 말라고 합니다. 앞 답변을 고쳐 다시 보여 주거나 지적을 사용자에게 말하지도 말라고 합니다.
 - `reviewer-model`의 기본값은 `sonnet`입니다. 값을 비우면 검토하지 않습니다. `reviewer-model` 키가 아예 없는 예전 규칙에서도 기본값으로 검토합니다.
 - `reviewer-min-hangul`의 기본값은 10, `reviewer-answer-min-hangul`은 30, `reviewer-max-hangul`은 6000, `reviewer-timeout`은 90초입니다.
-- 현재 검토 지시로 세 model의 지적 횟수와 비용을 측정했습니다. 측정 날짜는 2026년 11월 6일이고 Claude Code 버전은 2.1.310입니다. 측정에 쓴 예문은 18개이고 번역투가 든 문장이 8개, 자연스러운 문장이 10개입니다. 예문을 묶음 3개로 나누고 model마다 각 묶음을 여섯 번 보냈습니다. model마다 번역투 문장은 합쳐서 48번, 자연스러운 문장은 합쳐서 60번 보낸 셈입니다. 예문과 판단 기준은 `test/fixtures/eval/reviewer.json`에 있습니다. 검토 지시에는 이 예문의 문장과 그 문장에서 고칠 표현을 예로 넣지 않았습니다.
-- Sonnet은 번역투 문장을 48번 가운데 34번 지적했고 자연스러운 문장은 한 번도 잘못 지적하지 않았습니다. 묶음 하나에 평균 0.0114달러가 들었습니다.
-- Opus도 번역투 문장을 34번 지적했고 자연스러운 문장은 한 번도 잘못 지적하지 않았습니다. 묶음 하나에 평균 0.0147달러가 들었습니다.
-- Haiku는 번역투 문장을 32번 지적했지만 자연스러운 문장을 6번 잘못 지적했습니다. 묶음 하나에 평균 0.0013달러가 들었습니다.
+- 현재 검토 지시로 세 model의 지적 횟수와 비용을 측정했습니다. 측정 날짜는 2026년 11월 6일이고 Claude Code 버전은 2.1.310입니다. 측정에 쓴 예문은 18개이고 번역투가 든 문장이 8개, 자연스러운 문장이 10개입니다. 예문을 묶음 3개로 나누고 model마다 각 묶음을 여섯 번 보냈습니다. Model마다 번역투 문장은 합쳐서 48번, 자연스러운 문장은 합쳐서 60번 보낸 셈입니다. 예문과 판단 기준은 `test/fixtures/eval/reviewer.json`에 있습니다. 검토 지시에는 이 예문의 문장과 그 문장에서 고칠 표현을 예로 넣지 않았습니다.
+- Sonnet은 번역투 문장을 48번 가운데 34번 지적했고 자연스러운 문장은 한 번도 잘못 지적하지 않았습니다. 묶음 하나에 평균 $0.0114가 들었습니다.
+- Opus도 번역투 문장을 34번 지적했고 자연스러운 문장은 한 번도 잘못 지적하지 않았습니다. 묶음 하나에 평균 $0.0147가 들었습니다.
+- Haiku는 번역투 문장을 32번 지적했지만 자연스러운 문장을 6번 잘못 지적했습니다. 묶음 하나에 평균 $0.0013가 들었습니다.
 - 기본값은 자연스러운 문장을 한 번도 잘못 지적하지 않은 model 가운데 번역투 문장을 더 많이 지적한 model로 정합니다. 지적 횟수가 같으면 비용이 적은 model을 고릅니다. 이 측정에서 Sonnet과 Opus는 자연스러운 문장을 한 번도 잘못 지적하지 않았고 번역투 문장을 지적한 횟수도 34번으로 같았습니다. 따라서 묶음 하나에 드는 비용이 적은 Sonnet을 기본값으로 둡니다. Haiku는 자연스러운 문장을 6번 잘못 지적했으므로 고르지 않았습니다.
 - 0.4.1까지 쓰던 검토 지시로도 지적 횟수를 측정했습니다. 측정 날짜는 2026년 10월 30일이고 Claude Code 버전은 2.1.310입니다. 이때 쓴 예문에서는 자연스러운 문장 10개 가운데 5개에 지금과 달리 IT 용어가 한글로 적혀 있었습니다. 이 측정에서 Sonnet은 번역투 문장을 48번 가운데 32번 지적했고 Opus는 30번 지적했습니다. 두 model 모두 자연스러운 문장을 한 번도 잘못 지적하지 않았습니다. Haiku는 번역투 문장을 39번 지적했지만 자연스러운 문장을 11번 잘못 지적했습니다.
 
 ## IT 용어 표기
 
 개발자가 읽는 글에서는 IT와 공학 용어를 영어 원어로 씁니다. `커밋`, `머지`, `리포지토리` 같은 한글 음차와 `저장소`, `병합`, `배포` 같은 번역어를 모두 쓰지 않습니다. 파일, 프로젝트, 버전, 메시지처럼 완전히 정착한 일반어와 확인, 요청, 설정, 경로 같은 일반 어휘는 한국어로 씁니다.
-이 표기는 업계 다수 관행이 아니라 이 도구가 정한 기본값입니다. 국내 회사 기술 블로그 194편과 Microsoft, Google, AWS, GitHub의 한국어 문서는 대부분 한글로 표기합니다. 팀이 아래 키의 용어 표를 고치거나 값을 비우면 검사기가 잡는 표기만 바뀝니다. skill과 output style에 든 표기 지시는 바뀌지 않으므로 Claude가 한글 표기를 쓰게 하려면 프로젝트의 `CLAUDE.md`에 그렇게 적어야 합니다. 검토 model은 CLAUDE.md를 읽지 않으므로 한글 표기를 고칠 표현으로 지적할 수 있습니다.
+이 표기는 업계 다수 관행이 아니라 이 도구가 정한 기본값입니다. 국내 회사 기술 블로그 194편과 Microsoft, Google, AWS, GitHub의 한국어 문서는 대부분 한글로 표기합니다. 팀이 아래 키의 용어 표를 고치거나 값을 비우면 검사기가 잡는 표기만 바뀝니다. Skill과 output style에 든 표기 지시는 바뀌지 않으므로 Claude가 한글 표기를 쓰게 하려면 프로젝트의 `CLAUDE.md`에 그렇게 적어야 합니다. 검토 model은 CLAUDE.md를 읽지 않으므로 한글 표기를 고칠 표현으로 지적할 수 있습니다.
 
 - `banned-transliteration`에 적은 한글 음차는 `transliteration` 오류입니다. 일반 뜻으로 쓸 일이 드문 말을 이 키에 둡니다.
 - `ambiguous-transliteration`에 적은 한글 음차는 `ambiguous-transliteration` 경고입니다. `이슈`, `리뷰`, `포크`, `이벤트`처럼 일반 뜻으로도 흔히 쓰는 말을 이 키에 둡니다.
@@ -74,7 +74,7 @@ Claude Code는 session을 시작할 때 output style을 system prompt에 넣습�
 - 따옴표 안, 인라인 코드, 코드 블록에 쓴 말은 보지 않습니다. 사용자가 준 글을 옮겨 적거나 명령 출력을 보여 줄 때는 원래 표기를 지키기 때문입니다.
 - PreToolUse hook은 새 파일을 만들 때 파일 전체를 검사합니다. 기존 파일을 고칠 때는 바뀐 줄에 새로 쓴 음차처럼 이번 편집으로 새로 생긴 오류만 막습니다. 파일에서 `<!-- korean-style: general-reader -->` 줄을 지워서 생긴 음차 오류도 새로 생긴 오류로 봅니다. 파일에 원래 있던 음차는 막지 않으므로 한글 음차가 남은 기존 파일도 고칠 수 있습니다. 남은 음차는 `check-korean.mjs --all`로 찾아 따로 고칩니다.
 
-답변과 도구에 넘기는 글에서는 `transliteration`도 경고로만 알립니다(`chat-advisory-rules`). 답변에는 이용자 공지 초안이나 사용자가 준 글을 다듬은 결과가 들어 있을 때가 많은데 검사기는 이런 글을 가려내지 못합니다. 이런 답변을 Stop hook이 다시 쓰게 하면 Claude가 일반 독자가 읽을 글이나 사용자의 원문까지 영어 원어로 바꿀 수 있습니다. agent에게 주는 prompt에도 이용자 공지에 담을 사실이 들어 있을 때가 많아서 같은 기준을 적용합니다. 답변과 도구에 넘기는 글에서도 오류로 보고하게 하려면 `chat-advisory-rules` 값을 비웁니다.
+답변과 도구에 넘기는 글에서는 `transliteration`도 경고로만 알립니다(`chat-advisory-rules`). 답변에는 이용자 공지 초안이나 사용자가 준 글을 다듬은 결과가 들어 있을 때가 많은데 검사기는 이런 글을 가려내지 못합니다. 이런 답변을 Stop hook이 다시 쓰게 하면 Claude가 일반 독자가 읽을 글이나 사용자의 원문까지 영어 원어로 바꿀 수 있습니다. Agent에게 주는 prompt에도 이용자 공지에 담을 사실이 들어 있을 때가 많아서 같은 기준을 적용합니다. 답변과 도구에 넘기는 글에서도 오류로 보고하게 하려면 `chat-advisory-rules` 값을 비웁니다.
 
 이용자 공지, 웹 페이지, 앱 문구, 개인정보 처리방침, 약관처럼 일반 독자가 읽는 글은 `페이지`, `브라우저`, `쿠키`처럼 한글로 굳은 외래어로 씁니다. 이런 파일에는 IT 용어 표 규칙 세 가지(`transliteration`, `ambiguous-transliteration`, `loose-translation`)를 적용하지 않습니다. 다른 규칙은 그대로 적용합니다. 일반 독자가 읽는 파일은 두 방법으로 정합니다.
 
@@ -82,6 +82,19 @@ Claude Code는 session을 시작할 때 output style을 system prompt에 넣습�
 - 파일 첫머리에 `<!-- korean-style: general-reader -->` 줄을 넣습니다. 검사기는 코드 블록 밖에 이 줄이 있으면 파일 전체를 일반 독자가 읽는 글로 봅니다. 문서 파일에만 쓸 수 있습니다.
 
 `loanword-spelling`에는 `워크플로우=워크플로`, `디렉토리=디렉터리`처럼 이제 영어 원어로 쓰는 말의 한글 표기를 바로잡는 항목도 남겨 둡니다. 일반 독자가 읽는 글과 코드 블록에서는 이 항목이 맞는 한글 표기를 알려 줍니다. 개발자가 읽는 글에서 같은 낱말이 `transliteration` 오류에 걸리면 검사기는 이 항목을 건너뛰고 영어 원어 하나만 알립니다. 답변에서는 `transliteration`이 경고이므로 검사기가 이 항목을 건너뛰지 않고 틀린 한글 표기를 오류로 알립니다.
+
+## 첫머리의 영어 낱말과 금액 표기
+
+아래 두 표기는 문법 규칙이 아니라 이 도구가 정한 기본값입니다. 검사기는 이 표기를 지키지 않은 곳을 파일, commit 메시지, PR과 issue에 올리는 글에서는 오류로 보고하고 답변과 도구에 넘기는 글에서는 경고로만 알립니다(`chat-advisory-rules`). 답변에는 사용자가 준 글을 옮기거나 다듬은 결과가 들어 있을 때가 많으므로 `transliteration`과 같은 기준을 적용합니다.
+
+- 문장, 제목, 목록 항목, 표 칸의 첫머리에 쓴 영어 낱말은 첫 글자를 대문자로 씁니다. 굵은 글씨로 쓴 항목 이름(`- **이름:** `) 바로 뒤의 낱말도 같습니다. 첫 글자가 소문자이면 `lowercase-start` 오류입니다. `commit하기 전에 test를 실행합니다.`는 `Commit하기 전에 test를 실행합니다.`로 고칩니다. 문장 가운데에서는 제품 이름, 고유명사, 약어가 아닌 영어 낱말을 소문자로 씁니다.
+- 인라인 코드, 코드 블록, 따옴표 안의 낱말은 보지 않습니다. 인라인 코드로 시작하는 문장에서 코드 바로 뒤에 온 낱말도 첫머리로 보지 않습니다.
+- 숫자나 `.`, `/`, `_`, `@`, `:`, `-`가 든 낱말은 경로, URL, 파일 이름, 식별자로 보고 잡지 않습니다. 예를 들어 백틱 없이 쓴 `package.json을`, `check-korean.mjs는`과 commit 제목의 `docs:`는 잡지 않습니다. 한 글자 낱말도 잡지 않습니다.
+- `macOS`, `iOS`, `iPhone`처럼 첫 글자가 아닌 자리에 대문자가 든 이름은 잡지 않습니다. 공식 표기가 소문자로 시작하는 이름은 `lowercase-start-exempt`에 적습니다. 기본값은 `npm`, `npx`, `pnpm`, `nginx`입니다.
+- 한글이 없는 줄은 보지 않습니다. 앞 줄이 문장 끝 부호로 끝나지 않아 문장이 이어지는 줄에서는 줄의 첫머리를 보지 않습니다.
+- `lowercase-start-exempt` 키가 없는 규칙 문서에서는 이 검사를 하지 않습니다. 값을 비우면 예외 없이 검사합니다.
+- 달러 금액은 `$0.095`처럼 숫자 앞에 `$` 기호를 붙여 씁니다. 숫자 바로 뒤나 공백 하나 뒤에 통화 단위를 붙인 금액(`0.095달러`, `1,200 달러`)은 `currency-notation` 오류입니다. 통화 단위와 기호는 `currency-symbols`에 `원문=기호` 형식으로 적고 기본값은 `달러=$`입니다.
+- `달러화`, `미국 달러`처럼 앞에 숫자가 없는 말, `1억 달러`처럼 숫자와 통화 단위 사이에 다른 글자가 낀 금액, 따옴표 안의 금액은 잡지 않습니다. `currency-symbols` 값을 비우거나 키가 없으면 검사하지 않습니다.
 
 ## 번역투
 
@@ -116,7 +129,7 @@ Claude Code는 session을 시작할 때 output style을 system prompt에 넣습�
 `책을 가지고 있습니다`, `예전에는 서울에 살았었습니다`는 문맥에 맞는 표현인데도 `translationese`에 걸립니다. `디스크에서 자리를 차지하는 파일입니다`와 `사과 세 개에 두 개를 더하면 다섯 개가 됩니다`도 `literal-verb`에 걸립니다.
 소유, 시제, 비유, 셈을 나타내는 정상적인 문장에도 같은 구절이 들어가므로 두 규칙은 경고로만 둡니다. IT 용어 표의 경고 두 가지, 한자어, 구어 표현, 접속 부사 규칙도 같은 이유로 경고로만 둡니다.
 
-`transliteration`은 말투처럼 프로젝트가 정한 표기 정책이므로 개발자가 읽는 파일, commit 메시지, PR과 issue에 올리는 글에서는 오류로 둡니다.
+`transliteration`은 말투처럼 프로젝트가 정한 표기 정책이므로 개발자가 읽는 파일, commit 메시지, PR과 issue에 올리는 글에서는 오류로 둡니다. `lowercase-start`와 `currency-notation`도 같은 이유로 오류로 둡니다.
 
 쉼표 수, 문장 길이, 굵은 글씨 수, 명사형 종결이나 `~의`가 나오는 빈도는 문법 오류가 아니라 문체 경향을 보여 주는 값입니다.
 한도 값은 전에 측정해 정한 그대로 두고 경고를 낼지 정할 때만 씁니다. 기본 규칙은 영어 용어 수를 제한하지 않습니다.
@@ -138,7 +151,7 @@ Claude Code는 session을 시작할 때 output style을 system prompt에 넣습�
 ```korean-style-rules
 advisory-rules: translationese, literal-verb, comma-per-sentence, comma-segment-length, comma-after-conjunctive-adverb, comma-after-connective, sentence-too-long, nominalization, demonstrative-density, suffix-jeok-density, particle-ui-density, redundant-plural, bound-english, repeated-gloss, bold-density, contrast-density, inclusive-term, hybrid-negation, korean-required, ambiguous-transliteration, loose-translation, adverb-after-reason, hanja-word, colloquial
 review-rules: translationese, literal-verb, redundant-plural, comma-after-conjunctive-adverb, hybrid-negation, inclusive-term, sentence-too-long, adverb-after-reason, hanja-word, colloquial
-chat-advisory-rules: transliteration
+chat-advisory-rules: transliteration, lowercase-start, currency-notation
 register: 합니다체
 banned-address: 당신
 imperative-endings: 하십시오, 하시오, 해라, 하라, 해줘, 해봐, 하세요, 하십쇼
@@ -202,6 +215,8 @@ ambiguous-transliteration: 이벤트=event, 큐=queue, 워커=worker, 트리거=
 banned-translation: 저장소=repository, 배포=deploy, 병합=merge, 분기=branch, 끌어오기 요청=pull request 또는 PR, 매개변수=parameter, 인자=argument, 의존성=dependency, 인증서=certificate
 term-exempt: 푸시 알림, 분기별, 분기마다, 이번 분기, 지난 분기, 다음 분기, 플러그인 하이브리드, 되게 하, 되게 했, 되게 해, 되게 한, 되게 할, 되게 합, 되게 만, 본 적, 본 것, 본 바, 본 대로, 본 뒤, 본 다음, 본 후, 타 보니, 타 봤, 타 보면, 타 봐, 타 볼
 general-reader-globs:
+lowercase-start-exempt: npm, npx, pnpm, nginx
+currency-symbols: 달러=$
 hanja-words: 향후=앞으로, 익일=다음 날, 금번=이번, 제고=높이다, 상이=다르다, 제반=모든, 소정=정해진, 의거=따라, 당해 연도=해당 연도, ^본=이, _타=다른, _동=같은
 colloquial-words: -구요=-고요, -길래=-아서 또는 -므로, 되게=매우, 근데=그런데
 reason-endings: 때문입니다, 때문이다, 때문이에요, 때문이죠
@@ -231,7 +246,7 @@ banned-attribution: Generated with [Claude Code], Generated with Claude Code, no
 | ---  | --- |
 | `advisory-rules` | 막지 않고 경고로만 보고할 규칙 이름입니다. |
 | `review-rules` | 경고 규칙 가운데 hook이 Claude에게 알릴 규칙입니다. 이번에 바꾼 문단에서 새로 생긴 경고만 알립니다. |
-| `chat-advisory-rules` | 답변과 도구에 넘기는 글(질문, 계획, 파일 설명, agent에게 주는 prompt)에서만 경고로 보고할 규칙입니다. 파일, commit 메시지, PR과 issue에 올리는 글에서는 오류로 보고합니다. 기본값은 `transliteration`입니다. 키가 없으면 값을 비운 것과 같습니다. 0.4.1까지의 검사기는 이 키를 읽지 않습니다. |
+| `chat-advisory-rules` | 답변과 도구에 넘기는 글(질문, 계획, 파일 설명, agent에게 주는 prompt)에서만 경고로 보고할 규칙입니다. 파일, commit 메시지, PR과 issue에 올리는 글에서는 오류로 보고합니다. 기본값은 `transliteration`, `lowercase-start`, `currency-notation`입니다. 키가 없으면 값을 비운 것과 같습니다. 0.4.1까지의 검사기는 이 키를 읽지 않습니다. |
 | `register`  | 프로젝트가 쓰는 말투입니다. |
 | `banned-address`  | 읽는 사람을 부를 때 쓰면 안 되는 말입니다. |
 | `imperative-endings`  | 사람에게 명령이 되는 어미입니다. |
@@ -241,12 +256,12 @@ banned-attribution: Generated with [Claude Code], Generated with Claude Code, no
 | `writing-skill`  | Claude가 요청을 받을 때마다 한국어를 쓰기 전에 불러야 하는 skill입니다. 값을 비우면 hook이 skill을 요구하지 않습니다. 키가 없으면 `korean-rewrite`를 씁니다. |
 | `writing-skill-min-hangul`  | 답변이나 commit 메시지, 이번에 파일에 쓰는 내용에 한글이 이 수 이상 들어 있으면 hook이 skill을 요구합니다. |
 | `writer-agent`  | 한글이 많은 글을 맡길 agent입니다. 값을 비우면 hook이 이 agent를 요구하지 않습니다. 키가 없으면 `korean-writer`를 씁니다. |
-| `writer-agent-min-hangul`  | commit 메시지, PR과 issue에 올리는 글, 이번에 파일에 쓰는 내용에 한글이 이 수 이상 들어 있으면 hook이 `writer-agent`에 적은 agent에게 글을 맡기라고 요구합니다. 소스 파일에서는 주석의 한글만 계산에 넣습니다. 0이면 요구하지 않습니다. |
+| `writer-agent-min-hangul`  | Commit 메시지, PR과 issue에 올리는 글, 이번에 파일에 쓰는 내용에 한글이 이 수 이상 들어 있으면 hook이 `writer-agent`에 적은 agent에게 글을 맡기라고 요구합니다. 소스 파일에서는 주석의 한글만 계산에 넣습니다. 0이면 요구하지 않습니다. |
 | `writer-agent-answer-min-hangul`  | 답변에 한글이 이 수 이상 들어 있으면 Stop hook이 `writer-agent`에 적은 agent에게 글을 맡겨 다시 쓰라고 요구합니다. 0이면 답변에는 요구하지 않습니다. 기본값은 0입니다. |
 | `reviewer-model`  | Claude가 요청을 마친 뒤 그 요청에서 쓴 한국어를 다시 읽을 검토 model입니다. 값을 비우면 검토하지 않습니다. 키가 없으면 `sonnet`을 씁니다. |
 | `reviewer-min-hangul`  | 검토 hook이 모은 글 전체의 한글이 이 수보다 적으면 검토 model에게 보내지 않습니다. 기본값은 10입니다. |
 | `reviewer-answer-min-hangul`  | 답변의 한글이 이 수보다 적으면 답변은 보내지 않습니다. 0이면 답변은 늘 보내지 않습니다. 기본값은 30입니다. |
-| `reviewer-max-hangul`  | 한 번에 보내는 한글의 상한입니다. hook이 조각의 한글을 앞에서부터 합쳐 이 수를 넘으면 그 조각부터는 보내지 않습니다. 첫 조각은 이 수를 넘어도 보냅니다. 기본값은 6000입니다. |
+| `reviewer-max-hangul`  | 한 번에 보내는 한글의 상한입니다. Hook이 조각의 한글을 앞에서부터 합쳐 이 수를 넘으면 그 조각부터는 보내지 않습니다. 첫 조각은 이 수를 넘어도 보냅니다. 기본값은 6000입니다. |
 | `reviewer-timeout`  | 검토 model의 답을 기다리는 시간입니다. 단위는 초이고 기본값은 90입니다. |
 | `banned-char`  | 검사할 글자 종류입니다. 쓸 수 있는 이름은 `scripts/lib/rules/chars.mjs`에 있습니다. |
 | `allowed-emoji-shortcode`  | 사용자가 이름을 지정해 허용한 shortcode입니다. |
@@ -283,6 +298,8 @@ banned-attribution: Generated with [Claude Code], Generated with Claude Code, no
 | `banned-translation`  | IT 용어를 옮긴 번역어와 대신 쓸 영어 원어입니다. 0.4.1까지의 검사기는 답변에서만 이 키를 봅니다. |
 | `term-exempt`  | IT 용어 표, `hanja-words`, `colloquial-words`에 적은 말이 들어 있어도 잡지 않을 구절입니다. 0.4.1까지의 검사기는 이 키를 읽지 않습니다. |
 | `general-reader-globs`  | 일반 독자가 읽는 글로 볼 경로 pattern입니다. 이 경로의 파일에는 IT 용어 표 규칙을 적용하지 않습니다. 기본값은 비어 있습니다. 0.4.1까지의 검사기는 이 키를 읽지 않습니다. |
+| `lowercase-start-exempt`  | 문장, 제목, 목록 항목, 표 칸의 첫머리에 소문자로 써도 되는 영어 이름입니다. 기본값은 `npm`, `npx`, `pnpm`, `nginx`입니다. 값을 비우면 예외 없이 검사하고 키가 없으면 `lowercase-start` 검사를 하지 않습니다. 0.5.1까지의 검사기는 이 키를 읽지 않습니다. |
+| `currency-symbols`  | 숫자 뒤에 붙여 쓰면 알릴 통화 단위와 숫자 앞에 대신 붙일 통화 기호입니다. `원문=기호` 형식으로 적고 기본값은 `달러=$`입니다. 값을 비우거나 키가 없으면 검사하지 않습니다. 0.5.1까지의 검사기는 이 키를 읽지 않습니다. |
 | `hanja-words`  | 한자 관형사, 어려운 한자어와 대신 쓸 쉬운 말입니다. 0.4.1까지의 검사기는 이 키를 읽지 않습니다. |
 | `colloquial-words`  | 격식 있는 문어체에 쓰지 않는 구어 표현과 대신 쓸 말입니다. 0.4.1까지의 검사기는 이 키를 읽지 않습니다. |
 | `reason-endings`  | 이유를 밝힌 문장을 끝내는 말입니다. 0.4.1까지의 검사기는 이 키를 읽지 않습니다. |
@@ -297,7 +314,7 @@ banned-attribution: Generated with [Claude Code], Generated with Claude Code, no
 | `max-bold-per-unit`  | 문단이나 항목 하나에 쓸 수 있는 굵은 글씨 개수입니다. |
 | `max-contrast-per-1k`  | 대조 구문의 언어별 밀도 한도입니다. |
 | `chat-tool-fields`  | 사람이 읽는 산문이 들어가는 Claude Code 도구 입력 필드입니다. |
-| `agent-tool-fields`  | agent가 읽는 산문이 들어가는 Claude Code 도구 입력 필드입니다. |
+| `agent-tool-fields`  | Agent가 읽는 산문이 들어가는 Claude Code 도구 입력 필드입니다. |
 | `doc-globs`, `source-globs`  | 확장자보다 먼저 적용해 검사 종류를 정하는 경로 pattern입니다. |
 | `skip-globs`  | 검사하지 않을 경로입니다. |
 | `sweep-skip-dirs`  | 전체 검사에서 들어가지 않을 directory 이름입니다. |
@@ -340,6 +357,8 @@ banned-attribution: Generated with [Claude Code], Generated with Claude Code, no
 | `transliteration` | 개발자가 읽는 글에 쓴 IT 용어의 한글 음차입니다. 답변과 도구에 넘기는 글에서는 경고로 보고합니다. `general-reader-globs`에 적은 경로의 파일과 `<!-- korean-style: general-reader -->` 줄을 넣은 문서에는 적용하지 않습니다. |
 | `ambiguous-transliteration` | IT 용어의 한글 음차일 수 있는 낱말입니다. 일반 뜻으로 썼으면 그대로 둡니다. |
 | `loose-translation` | IT 용어를 옮긴 번역어일 수 있는 낱말입니다. 일반 뜻으로 썼으면 그대로 둡니다. |
+| `lowercase-start` | 문장, 제목, 목록 항목, 표 칸의 첫머리나 굵은 글씨로 쓴 항목 이름 바로 뒤에 소문자로 시작한 영어 낱말입니다. 답변과 도구에 넘기는 글에서는 경고로 보고합니다. |
+| `currency-notation` | 숫자 뒤에 통화 단위를 붙여 쓴 금액입니다. `0.095달러`는 `$0.095`로 고칩니다. 답변과 도구에 넘기는 글에서는 경고로 보고합니다. |
 | `hanja-word` | 한자 관형사나 어려운 한자어입니다. |
 | `colloquial` | 격식 있는 문어체에 쓰지 않는 구어 표현입니다. |
 | `adverb-after-reason` | 이유 문장 바로 뒤 문장을 시작한 `그래서` 같은 접속 부사입니다. 앞 문장의 일 때문에 뒤 문장의 일이 일어났으면 그대로 둡니다. |

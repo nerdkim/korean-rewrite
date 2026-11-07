@@ -14,6 +14,7 @@ import { vocabularyViolations } from './rules/vocabulary.mjs';
 import { connectiveViolations } from './rules/connectives.mjs';
 import { densityViolations } from './rules/density.mjs';
 import { attributionViolations } from './rules/attribution.mjs';
+import { notationViolations } from './rules/notation.mjs';
 
 /* 문서가 일반 독자가 읽는 글이라고 밝히는 줄입니다. 코드 블록 밖에 이 줄이 있으면 파일 전체에 IT 용어 표 규칙을 적용하지 않습니다. */
 export const GENERAL_READER_MARK = /^[ \t]*<!--[ \t]*korean-style:[ \t]*general-reader[ \t]*-->[ \t]*$/mu;
@@ -70,6 +71,7 @@ export function checkText(input, rules, target = 'chat', options = {}) {
     ...connectiveViolations(text, rules),
     ...densityViolations(text, rules),
     ...attributionViolations(text, rules),
+    ...notationViolations(text, rules, rawText),
   ];
 
   if (!inFence) {
@@ -114,7 +116,7 @@ export function toolFieldTexts(toolName, input, rules, which = 'chatToolFields')
   return out;
 }
 
-/* 도구 호출의 필드 값을 하나씩 검사합니다. 사용자에게 보여 주는 글과 agent에게 주는 prompt에서도 답변과 마찬가지로 `chat-advisory-rules`에 든 규칙에 걸린 표현을 경고로 보고합니다. agent에게 주는 prompt에는 사용자가 준 글이나 이용자 공지에 담을 사실이 들어 있을 때가 많기 때문입니다. */
+/* 도구 호출의 필드 값을 하나씩 검사합니다. 사용자에게 보여 주는 글과 agent에게 주는 prompt에서도 답변과 마찬가지로 `chat-advisory-rules`에 든 규칙에 걸린 표현을 경고로 보고합니다. Agent에게 주는 prompt에는 사용자가 준 글이나 이용자 공지에 담을 사실이 들어 있을 때가 많기 때문입니다. */
 export function checkToolCall(toolName, input, rules, target = 'chat') {
   const which = target === 'chat' ? 'chatToolFields' : 'agentToolFields';
   const problems = [];

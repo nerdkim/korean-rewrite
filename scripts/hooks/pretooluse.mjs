@@ -194,7 +194,7 @@ export function newErrors(before, after, rules, target, path) {
     .sort((a, b) => a.line - b.line);
 }
 
-/* shell에 그대로 붙여 넣을 수 있게 필요하면 경로를 작은따옴표로 감쌉니다. */
+/* Shell에 그대로 붙여 넣을 수 있게 필요하면 경로를 작은따옴표로 감쌉니다. */
 const shellQuote = (s) => (/^[\w./-]+$/.test(s) ? s : `'${s.replaceAll("'", "'\\''")}'`);
 
 export function formatReviewNotes(notes, where, checker = 'check-korean.mjs') {
@@ -209,7 +209,7 @@ export function formatReviewNotes(notes, where, checker = 'check-korean.mjs') {
   return [head, ...body, ...rest].join('\n');
 }
 
-/* heredoc을 여는 표시입니다. 끝을 알리는 이름은 두 번째 capture group에 담깁니다. */
+/* Heredoc을 여는 표시입니다. 끝을 알리는 이름은 두 번째 capture group에 담깁니다. */
 const HEREDOC_OPEN = /<<-?[ \t]*(['"]?)([A-Za-z_]\w*)\1/y;
 
 /* `from`부터 heredoc 본문을 차례로 건너뛰고 마지막 본문을 닫는 줄의 끝 위치를 돌려줍니다. */
@@ -282,7 +282,7 @@ export function commandSegments(command) {
 }
 
 /*
- * option 하나의 값입니다. Claude Code는 여러 줄 메시지를 `"$(cat <<'EOF' ... EOF\n)"`로 넘깁니다. 이 형태에서는 heredoc 본문을 값으로 읽습니다.
+ * Option 하나의 값입니다. Claude Code는 여러 줄 메시지를 `"$(cat <<'EOF' ... EOF\n)"`로 넘깁니다. 이 형태에서는 heredoc 본문을 값으로 읽습니다.
  * 그 밖에는 ANSI-C 따옴표(`$'...'`), 큰따옴표, 작은따옴표로 감싼 값과 따옴표 없이 쓴 낱말 하나를 읽습니다.
  * 들여쓰기와 줄 끝 공백은 `[\t ]`로만 잡습니다. `\s`처럼 줄바꿈까지 잡으면 닫히지 않은 heredoc에서 backtracking이 크게 늘어납니다.
  */
@@ -291,7 +291,7 @@ const OPTION_VALUE = String.raw`(?:"\$\(cat[ \t]+<<-?[ \t]*(['"]?)([A-Za-z_]\w*)
 /* ANSI-C 따옴표 안의 escape 문자를 풉니다. */
 const unescapeAnsiC = (s) => s.replace(/\\(.)/gs, (_, ch) => ({ n: '\n', t: '\t' })[ch] ?? ch);
 
-/* 큰따옴표로 감싼 값이나 따옴표 없이 쓴 값에서 shell이 풀었을 escape 문자를 풉니다. backslash로 이은 줄은 붙이고 글자 그대로 쓴 `\n`도 줄바꿈으로 바꿉니다. */
+/* 큰따옴표로 감싼 값이나 따옴표 없이 쓴 값에서 shell이 풀었을 escape 문자를 풉니다. Backslash로 이은 줄은 붙이고 글자 그대로 쓴 `\n`도 줄바꿈으로 바꿉니다. */
 const unescapeShell = (s) => s.replace(/\\\n/g, '').replace(/\\(["'\\$`])/g, '$1').replace(/\\n/g, '\n');
 
 /*
@@ -338,12 +338,12 @@ export function pullRequestTextsIn(command) {
     .flatMap((segment) => [...optionValues(segment, { short: '-[tb]', long: '--title|--body|--subject' }), ...stdinBodies(segment)]);
 }
 
-/* heredoc 본문을 지웁니다. */
+/* Heredoc 본문을 지웁니다. */
 function stripHeredocBodies(command) {
   return command.replace(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1[\s\S]*?^\s*\2\s*$/gm, '<<$2');
 }
 
-/* shell 명령이 쓰려는 파일 가운데 검사하는 파일의 경로를 찾습니다. */
+/* Shell 명령이 쓰려는 파일 가운데 검사하는 파일의 경로를 찾습니다. */
 export function shellWritePaths(command, rules, projectRoot, cwd) {
   if (typeof command !== 'string' || command.length === 0) return [];
   const text = stripHeredocBodies(command);
@@ -372,7 +372,7 @@ export function shellWritePaths(command, rules, projectRoot, cwd) {
   const out = [];
   for (const raw of candidates) {
     if (raw.length === 0) continue;
-    /* shell이 확장할 문자가 남아 있으면 건너뜁니다. */
+    /* Shell이 확장할 문자가 남아 있으면 건너뜁니다. */
     if (/[$`~*?]/.test(raw)) continue;
     const rel = toProjectRelative(resolve(cwd ?? projectRoot, raw), projectRoot);
     if (rel === null) continue;
@@ -447,7 +447,7 @@ function run() {
     deny(formatToolViolations(problems, rules));
   }
 
-  /* 2) agent가 읽을 산문을 담는 도구입니다. */
+  /* 2) Agent가 읽을 산문을 담는 도구입니다. */
   if (rules.agentToolFields.has(toolName)) {
     const problems = blockingViolations(checkToolCall(toolName, ti, rules, 'doc'));
     if (problems.length === 0) process.exit(0);
@@ -465,7 +465,7 @@ function run() {
       if (problems.length > 0) deny(formatViolations(problems, rules, where));
     }
 
-    /* shell 명령으로 쓰는 파일입니다. */
+    /* Shell 명령으로 쓰는 파일입니다. */
     const writes = shellWritePaths(ti.command, rules, PROJECT_ROOT, input.cwd);
     if (writes.length > 0) {
       deny(

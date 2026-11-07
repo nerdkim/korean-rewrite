@@ -19,7 +19,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* korean-style skill을 설치할 경로입니다. */
 const SKILL_REL = join('.claude', 'skills', 'korean-style', 'SKILL.md');
 
-/* output style을 설치할 경로입니다. */
+/* Output style을 설치할 경로입니다. */
 const STYLE_REL = join('.claude', 'output-styles', 'korean-style.md');
 
 /* 설치할 프로젝트로 쓸 빈 directory입니다. */
@@ -31,7 +31,7 @@ const scratch = () => {
 };
 after(() => temporary.forEach(path => rmSync(path, { recursive: true, force: true })));
 
-/* git repository로 만든 빈 directory입니다. */
+/* Git repository로 만든 빈 directory입니다. */
 function gitScratch() {
   const target = scratch();
   const r = spawnSync('git', ['init', '-q'], { cwd: target, encoding: 'utf-8' });
@@ -39,7 +39,7 @@ function gitScratch() {
   return target;
 }
 
-/* child process가 쓸 환경입니다. */
+/* Child process가 쓸 환경입니다. */
 function envFor(root) {
   const env = { ...process.env, CLAUDE_PROJECT_DIR: root };
   delete env.KOREAN_STYLE_RULES;
@@ -145,7 +145,7 @@ test('설치하면 commit-msg hook이 실제로 걸린다', () => {
   install(target);
   const hook = join(target, '.git', 'hooks', 'commit-msg');
   assert.ok(existsSync(hook), 'hook이 걸려야 합니다');
-  /* hook이 끊어진 symlink이면 git이 아무 표시 없이 건너뜁니다. */
+  /* Hook이 끊어진 symlink이면 git이 아무 표시 없이 건너뜁니다. */
   assert.ok(existsSync(realpathSync(hook)), 'hook이 끊어진 symlink이면 안 됩니다');
 });
 
@@ -398,7 +398,7 @@ test('--register 값에 따라 설치된 검사기의 결과가 실제로 달라
 });
 
 test('output style 본문이 이 repository의 규칙 검사를 통과한다', () => {
-  /* output style에는 Claude가 글을 쓰기 전에 따를 원칙이 들어 있습니다. 검사기는 Claude가 쓴 글에서 금지 목록의 표현을 찾습니다. */
+  /* Output style에는 Claude가 글을 쓰기 전에 따를 원칙이 들어 있습니다. 검사기는 Claude가 쓴 글에서 금지 목록의 표현을 찾습니다. */
   const rules = loadRules(rulesDocPath(ROOT));
   assert.notEqual(rules.source, null, '규칙 문서를 읽지 못했습니다');
 
@@ -408,7 +408,7 @@ test('output style 본문이 이 repository의 규칙 검사를 통과한다', (
 });
 
 test('설치할 때 고른 말투의 문구를 output style에도 넣는다', () => {
-  /* skill과 같은 문구를 써야 합니다. */
+  /* Skill과 같은 문구를 써야 합니다. */
   const target = scratch();
   const r = install(target, ['--register', '해요체']);
   assert.equal(r.status, 0, r.stderr);

@@ -86,7 +86,7 @@ test('일반 뜻도 있는 음차와 일반 뜻과 겹치는 번역어는 경고
     ['리뷰를 부탁드립니다.', 'ambiguous-transliteration'],
     ['보도자료를 배포했습니다.', 'loose-translation'],
     ['저장소에 올렸습니다.', 'loose-translation'],
-    ['main에 병합했습니다.', 'loose-translation'],
+    ['변경을 main에 병합했습니다.', 'loose-translation'],
     ['조건마다 분기를 나눴습니다.', 'loose-translation'],
   ]) {
     const found = checkText(text, RULES, 'doc');
@@ -177,7 +177,7 @@ test('정상 용법인 `~에 대한`, 경로를 뜻하는 `~을 통해`, 근거�
 });
 
 test('필요성을 말하는 `~할 필요가 있다`, 조건을 말하는 `~할 경우`, `에서의`도 정상 용법이므로 잡지 않는다', () => {
-  /* skill이 고치지 말라고 한 표현입니다. 검사기가 이 표현에 경고를 내면 PreToolUse hook이 Claude에게 다시 살펴보라고 알립니다. */
+  /* Skill이 고치지 말라고 한 표현입니다. 검사기가 이 표현에 경고를 내면 PreToolUse hook이 Claude에게 다시 살펴보라고 알립니다. */
   for (const text of ['오류가 발생할 경우에는 API로 확인합니다.', '확인할 필요가 있습니다.', '운영 환경에서의 부하']) {
     assert.deepEqual(caught(text, ['translationese']), [], text);
   }

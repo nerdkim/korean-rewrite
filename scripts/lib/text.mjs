@@ -80,7 +80,7 @@ export function blankQuoteRegions(text, marker) {
   return lines.map((line, i) => (quoted.has(i) ? blank(line) : line)).join('\n');
 }
 
-/* {@link stripCode}와 달리 코드 블록 안쪽만 남깁니다. info string이 exemptInfo에 든 코드 블록은 공백으로 바꿉니다. */
+/* {@link stripCode}와 달리 코드 블록 안쪽만 남깁니다. Info string이 exemptInfo에 든 코드 블록은 공백으로 바꿉니다. */
 export function onlyFenced(text, exemptInfo = []) {
   const lines = text.split('\n');
   const marks = fenceLines(lines);

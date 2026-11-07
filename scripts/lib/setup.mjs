@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { INSTALLED_DIR } from './paths.mjs';
 
-/* hook script가 없는 worktree에서 UserPromptSubmit hook이 Claude에게 전하는 안내입니다. hook 명령이 이 안내를 작은따옴표로 감싸므로 안내에는 작은따옴표를 넣지 않습니다. */
+/* Hook script가 없는 worktree에서 UserPromptSubmit hook이 Claude에게 전하는 안내입니다. Hook 명령이 이 안내를 작은따옴표로 감싸므로 안내에는 작은따옴표를 넣지 않습니다. */
 export const MISSING_SCRIPTS_NOTICE =
   '이 worktree에는 한국어 작성 도구의 hook script(.korean-style/scripts/)가 없어서 한국어 검사가 동작하지 않습니다. ' +
   '이 script는 Git에서 제외되므로 repository를 새로 clone하거나 git worktree로 새 worktree를 만들면 설치 명령을 다시 실행해야 생깁니다. ' +
@@ -13,7 +13,7 @@ export const MISSING_SCRIPTS_NOTICE =
 /*
  * Claude Code 2.1.310은 이 환경 변수에 값이 없으면 API 요청에 `thinking.display: "updates"`를 넣습니다.
  * 그러면 server는 Claude가 도구를 부르는 사이에 쓴 진행 보고 가운데 일부를 그대로 보내지 않고 요약한 문장으로 바꿔 보냅니다.
- * 이 문장은 Claude가 쓴 글이 아니어서 skill과 output style을 거치지 않습니다. hook도 이 문장을 검사하지 못합니다.
+ * 이 문장은 Claude가 쓴 글이 아니어서 skill과 output style을 거치지 않습니다. Hook도 이 문장을 검사하지 못합니다.
  * 값을 0으로 두면 server는 요약한 문장 대신 빈 블록을 보내고 화면에는 아무 문장도 나오지 않습니다.
  */
 export const PROGRESS_SUMMARY_ENV = 'CLAUDE_CODE_THINKING_DISPLAY_UPDATES';
@@ -24,7 +24,7 @@ export function isOffValue(value) {
   return ['0', 'false', 'no', 'off'].includes(String(value).trim().toLowerCase());
 }
 
-/* settings.json에 넣을 hook 명령을 만듭니다. 설치한 프로젝트에서는 hook script를 Git에서 제외하므로 repository를 새로 clone하면 script가 없습니다. 이때 node가 "Cannot find module"로 실패하지 않도록 script가 있을 때만 실행합니다. script가 없으면 UserPromptSubmit hook만 안내를 남깁니다. 다른 hook은 아무것도 하지 않습니다. 이 도구의 repository에는 script가 commit되어 있으므로 script를 바로 실행합니다. */
+/* settings.json에 넣을 hook 명령을 만듭니다. 설치한 프로젝트에서는 hook script를 Git에서 제외하므로 repository를 새로 clone하면 script가 없습니다. 이때 node가 "Cannot find module"로 실패하지 않도록 script가 있을 때만 실행합니다. Script가 없으면 UserPromptSubmit hook만 안내를 남깁니다. 다른 hook은 아무것도 하지 않습니다. 이 도구의 repository에는 script가 commit되어 있으므로 script를 바로 실행합니다. */
 export function hookCommand(name, installed = true) {
   const script = `$CLAUDE_PROJECT_DIR/${installed ? `${INSTALLED_DIR}/` : ''}scripts/hooks/${name}.mjs`;
   if (!installed) return `node "${script}"`;

@@ -28,7 +28,7 @@ export function lastAssistantText(transcriptPath) {
       .map((part) => part.text)
       .join('\n')
       .trim();
-    /* text 조각이 없는 assistant 줄은 도구 호출만 담은 줄입니다. */
+    /* `text` 조각이 없는 assistant 줄은 도구 호출만 담은 줄입니다. */
     if (text.length > 0) pieces.push(text);
   }
   return pieces.length === 0 ? null : pieces.join('\n\n');

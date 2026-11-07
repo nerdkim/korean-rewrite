@@ -50,7 +50,7 @@ const LONG_KOREAN = [
   '규칙 문서는 repository에 commit하므로 팀원이 설치 명령을 한 번 실행하면 같은 규칙이 적용됩니다.',
   '검사기는 model을 부르지 않으므로 같은 글을 같은 규칙으로 검사하면 결과가 늘 같습니다.',
   '경고는 문맥에 맞으면 그대로 두어도 되고 오류만 고치면 hook이 쓰기를 막지 않습니다.',
-  'commit 메시지는 Git의 commit-msg hook도 검사하므로 사람이 직접 하는 commit에도 같은 규칙이 적용됩니다.',
+  'Commit 메시지는 Git의 commit-msg hook도 검사하므로 사람이 직접 하는 commit에도 같은 규칙이 적용됩니다.',
   '설치한 뒤에는 doctor를 실행해 hook, skill, 작성 agent가 제자리에 있는지 확인합니다.',
   '작성 agent는 메모에 적힌 사실만으로 글을 쓰고 완성한 글만 돌려줍니다.',
 ].join(' ');
@@ -68,7 +68,7 @@ function transcript(entries, path = join(scratch(), 'session.jsonl')) {
   return path;
 }
 
-/* hook을 실제로 띄우고 stdout을 JSON으로 읽습니다. */
+/* Hook을 실제로 띄우고 stdout을 JSON으로 읽습니다. */
 function runHook(script, input, env = {}) {
   const r = spawnSync('node', [join(ROOT, 'scripts', 'hooks', script)], {
     input: JSON.stringify(input),
@@ -157,7 +157,7 @@ test('skill이 설치되지 않았거나 규칙에서 꺼져 있거나 transcrip
 
 test('같은 요청에서 정해 둔 횟수만큼 막았으면 더 막지 않는다', () => {
   /* Skill 도구를 쓸 수 없는 환경에서 끝없이 막히는 일을 막습니다. */
-  /* hook이 실제로 막을 때 쓰는 문구로 transcript를 만듭니다. 막은 횟수를 집계할 때 찾는 문구가 이 문구와 달라지면 이 test가 실패합니다. */
+  /* Hook이 실제로 막을 때 쓰는 문구로 transcript를 만듭니다. 막은 횟수를 집계할 때 찾는 문구가 이 문구와 달라지면 이 test가 실패합니다. */
   const denied = Array.from({ length: MAX_SKILL_DENIALS }, () => result(skillRequest('korean-rewrite', '다시 쓰십시오.')));
   assert.ok(needsSkill(context(transcript([prompt('질문입니다'), ...denied.slice(1)]))));
   assert.ok(!needsSkill(context(transcript([prompt('질문입니다'), ...denied]))));
@@ -286,7 +286,7 @@ test('`needsWriter`는 한글이 200자 이상인 글을 쓰는데 이번 요청
   assert.ok(!needsWriter(writing(skipped, { agentId: 'a1b2c3' })), 'subagent가 쓰는 글');
   assert.ok(!needsWriter(writing(skipped, { rules: { ...RULES, writerAgent: '' } })), '`writer-agent`를 비운 규칙');
   assert.ok(!needsWriter(writing(skipped, { minHangul: 0 })), '기준이 0인 글');
-  /* hook이 실제로 막을 때 쓰는 문구로 transcript를 만듭니다. 막은 횟수를 집계할 때 찾는 문구가 이 문구와 달라지면 이 test가 실패합니다. */
+  /* Hook이 실제로 막을 때 쓰는 문구로 transcript를 만듭니다. 막은 횟수를 집계할 때 찾는 문구가 이 문구와 달라지면 이 test가 실패합니다. */
   const denied = Array.from({ length: MAX_WRITER_DENIALS }, () => result(writerRequest('korean-writer', 200, '다시 쓰십시오.')));
   assert.ok(denied.every((entry) => entry.message.content[0].content.includes(WRITER_MISSING)));
   assert.ok(needsWriter(writing(transcript([prompt('README를 고쳐 주십시오'), ...denied.slice(1)]))));
@@ -300,7 +300,7 @@ test('`korean-writer` agent를 불렀으면 `korean-rewrite` skill을 부르지 
 });
 
 test('PreToolUse hook은 agent를 부르지 않은 요청에서 한글이 200자 이상인 Write를 막는다', () => {
-  /* 막는 이유에는 agent 이름과 메모에 적을 항목(독자, 글 종류, 말투, 담을 사실)이 들어 있습니다. agent를 부른 요청에서는 막지 않습니다. */
+  /* 막는 이유에는 agent 이름과 메모에 적을 항목(독자, 글 종류, 말투, 담을 사실)이 들어 있습니다. Agent를 부른 요청에서는 막지 않습니다. */
   const input = (path) => ({
     tool_name: 'Write',
     tool_input: { file_path: join(ROOT, 'docs', 'writer-test.md'), content: `${LONG_KOREAN}\n` },
@@ -332,7 +332,7 @@ test('Stop hook은 `writer-agent-answer-min-hangul`이 0이면 답변을 agent�
 });
 
 test('UserPromptSubmit hook은 agent 파일이 있을 때만 안내에 agent 이름과 기준 길이를 넣는다', () => {
-  /* agent 파일이 있으면 안내에 agent 이름과 기준 길이가 들어가고 없으면 들어가지 않습니다. 답변 기준이 0이면 답변은 안내에 넣지 않습니다. 안내는 돌려받은 글에서 `빠진 정보:` 줄을 빼라고도 알립니다. */
+  /* Agent 파일이 있으면 안내에 agent 이름과 기준 길이가 들어가고 없으면 들어가지 않습니다. 답변 기준이 0이면 답변은 안내에 넣지 않습니다. 안내는 돌려받은 글에서 `빠진 정보:` 줄을 빼라고도 알립니다. */
   const out = runHook('userprompt.mjs', { prompt: '설치 안내를 써 주십시오' });
   assert.match(out.hookSpecificOutput.additionalContext, /파일, commit 메시지, PR과 issue에 올리는 글은 한 번에 쓰는 한글이 200자 이상이면 직접 쓰지 말고 Agent 도구로 korean-writer에게/);
   assert.match(out.hookSpecificOutput.additionalContext, /`빠진 정보:` 줄은 빼고/);

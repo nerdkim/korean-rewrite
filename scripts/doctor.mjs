@@ -57,7 +57,7 @@ for (const path of [settingsPath, ...localSettingsPaths(root)]) {
 }
 const effective = Object.assign({}, ...sources.map(s => s.settings));
 if (effective.disableAllHooks === true) bad('disableAllHooks로 hook이 꺼져 있습니다');
-/* 설정 파일은 프로젝트 설정, local 설정 순서로 읽었습니다. local 설정이 우선하므로 값이 있는 파일 가운데 마지막 파일의 값을 봅니다. 프로젝트에서 정해 둔 공동 작성자 줄처럼 생성 표시가 아닌 값에는 주의를 출력하지 않습니다. */
+/* 설정 파일은 프로젝트 설정, local 설정 순서로 읽었습니다. Local 설정이 우선하므로 값이 있는 파일 가운데 마지막 파일의 값을 봅니다. 프로젝트에서 정해 둔 공동 작성자 줄처럼 생성 표시가 아닌 값에는 주의를 출력하지 않습니다. */
 const attributionOf = key => sources.map(s => s.settings.attribution?.[key]).filter(v => v !== undefined).at(-1);
 for (const [key, label] of [['commit', 'commit 메시지'], ['pr', 'PR 설명']]) {
   const value = attributionOf(key);
@@ -67,7 +67,7 @@ for (const [key, label] of [['commit', 'commit 메시지'], ['pr', 'PR 설명']]
     warn(`attribution의 ${key} 값에 생성 표시가 들어 있어 Claude Code가 ${label}에 이 값을 붙입니다. 설치 script는 정해 둔 값을 바꾸지 않으므로 직접 빈 문자열로 바꿔야 합니다.`);
   }
 }
-/* 이 값이 요약을 끄는 값이 아니면 server가 요약한 진행 보고가 화면에 나옵니다. server가 요약한 문장은 Claude가 쓴 글이 아니어서 skill과 검사기를 거치지 않습니다. */
+/* 이 값이 요약을 끄는 값이 아니면 server가 요약한 진행 보고가 화면에 나옵니다. Server가 요약한 문장은 Claude가 쓴 글이 아니어서 skill과 검사기를 거치지 않습니다. */
 const summary = sources.map(s => s.settings.env?.[PROGRESS_SUMMARY_ENV]).filter(v => v !== undefined).at(-1);
 if (isOffValue(summary)) ok(`env의 ${PROGRESS_SUMMARY_ENV} 값이 요약을 끄는 값이어서 server가 요약한 진행 보고가 화면에 나오지 않습니다`);
 else if (summary === undefined) warn(`env에 ${PROGRESS_SUMMARY_ENV} 값이 없어 server가 요약한 진행 보고가 화면에 나옵니다. server가 요약한 문장은 skill과 검사기를 거치지 않습니다. 설치 명령을 다시 실행하면 설치 script가 0을 넣습니다.`);
