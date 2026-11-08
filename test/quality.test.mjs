@@ -214,7 +214,7 @@ test('산문의 가운뎃점과 줄표는 막고 백틱으로 감싼 문자와 �
   }
 });
 
-test('hook이 Claude에게 알릴 규칙은 모두 경고 규칙이고 규칙 이름 표에 있다', () => {
+test('Hook이 Claude에게 알릴 규칙은 모두 경고 규칙이고 규칙 이름 표에 있다', () => {
   /* 오류 규칙을 넣으면 쓰기가 막혀 알릴 기회가 없습니다. 이름을 잘못 적으면 그 규칙의 알림이 아무 표시 없이 꺼집니다. */
   const reported = new Set([...readFileSync(rulesPath, 'utf8').matchAll(/^\| `([a-z-]+)` \|/gm)].map(m => m[1]));
   assert.ok(rules.reviewRules.length > 0);
@@ -266,7 +266,7 @@ test('저장된 평가 결과를 프로필마다 항목별로 집계해 README�
     { profile: 'installed', skills: ['korean-rewrite'], costUsd: 0.1, seconds: 17, hookResponses: [{ event: 'PreToolUse', output: '{"decision":"block"}', exitCode: 0 }], answers: [{ id: 'b', text: '`확인해요`와 `캐시`라는 낱말을 지웠습니다.' }] },
   ];
   const summary = summarize(rows, rules);
-  assert.deepEqual(summary.baseline, { answers: 2, skill: 0, rewritten: 0, errors: 2, register: 1, transliteration: 2, looseTranslation: 0, emoji: 1, middot: 1, attribution: 1,
+  assert.deepEqual(summary.baseline, { answers: 2, skill: 0, rewritten: 0, errors: 2, register: 1, haeyoOnly: 1, transliteration: 2, looseTranslation: 0, emoji: 1, middot: 1, attribution: 1,
     chars: [...rows[0].answers[0].text].length + [...rows[1].answers[0].text].length, costUsd: 0.1, seconds: 22, firstAnswers: 2, firstCostUsd: 0.1, repeatAnswers: 0, repeatCostUsd: 0 });
   assert.equal(summary.installed.skill, 2);
   assert.equal(summary.installed.rewritten, 1, 'Stop hook이 다시 쓰게 한 기록만 집계합니다');
@@ -280,11 +280,23 @@ test('저장된 평가 결과를 프로필마다 항목별로 집계해 README�
   assert.match(table, /^\| Skill을 거친 답변 \| 2개 중 0개 \| 2개 중 2개 \|$/m);
   assert.match(table, /^\| Stop hook이 다시 쓰게 한 답변 \| 2개 중 0개 \| 2개 중 1개 \|$/m);
   assert.match(table, /^\| 검사기가 오류를 찾은 답변 \| 2개 중 2개 \| 2개 중 0개 \|$/m);
+  assert.match(table, /^\| 해요체로만 쓴 답변 \| 2개 중 1개 \| 2개 중 0개 \|$/m);
   assert.match(table, /^\| 검사기가 IT 용어의 한글 음차를 찾은 답변 \| 2개 중 2개 \| 2개 중 0개 \|$/m);
   assert.match(table, /^\| 검사기가 IT 용어의 번역어를 찾은 답변 \| 2개 중 0개 \| 2개 중 1개 \|$/m);
   assert.match(table, /^\| 답변 하나에 든 평균 비용 \| \$0\.050 \| \$0\.090 \|$/m);
   assert.doesNotMatch(table, /처음 보낸 요청|다시 보냈을 때/, '같은 요청을 다시 보낸 기록이 없으면 비용을 나누지 않습니다');
   assert.match(table, /^\| 답변 하나를 받는 데 걸린 평균 시간 \| 11\.0초 \| 16\.0초 \|$/m);
+});
+
+test('합니다체와 해요체를 섞은 답변은 해요체 어미를 찾은 답변에만 집계하고 해요체로만 쓴 답변에는 넣지 않는다', () => {
+  /* README는 이 도구가 없는 프로젝트에서 검사기가 오류를 찾은 답변 가운데 말투를 섞은 답변과 해요체로만 쓴 답변을 나눠 설명합니다. 섞은 답변을 해요체로만 쓴 답변으로 집계하면 그 설명이 틀립니다. */
+  const summary = summarize([
+    { profile: 'baseline', costUsd: 0, seconds: 1, answers: [{ id: 'a', text: '설정을 확인했습니다. 결과는 아래와 같아요.' }] },
+    { profile: 'baseline', costUsd: 0, seconds: 1, answers: [{ id: 'b', text: '설정을 확인했어요. 결과는 아래와 같아요.' }] },
+    { profile: 'baseline', costUsd: 0, seconds: 1, answers: [{ id: 'c', text: '설정을 확인했습니다.' }] },
+  ], rules);
+  assert.equal(summary.baseline.register, 2);
+  assert.equal(summary.baseline.haeyoOnly, 1);
 });
 
 test('같은 요청을 다시 보낸 결과가 있으면 처음 보낸 요청과 다시 보낸 요청의 비용을 나눠 표에 싣는다', () => {
@@ -314,20 +326,20 @@ test('평가 결과를 집계할 때 답변이 없는 프로필과 잘못된 입
   assert.equal(({}).answers, undefined, '다른 객체에 속성이 생기면 안 됩니다');
 });
 
-test('session마다 system prompt에 들어가는 output style의 분량을 제한한다', () => {
+test('Session마다 system prompt에 들어가는 output style의 분량을 제한한다', () => {
   const style = readFileSync(new URL('../output-styles/korean-style.md', import.meta.url), 'utf8');
   assert.ok([...style].length <= 1600, '긴 설명은 skill이나 docs/ 아래 문서에 둡니다');
   assert.match(style, /keep-coding-instructions: true/);
 });
 
-test('output style에는 처음부터 한국어로 생각하라는 지시와 생성 표시를 넣지 말라는 지시가 들어 있다', () => {
+test('Output style에는 처음부터 한국어로 생각하라는 지시와 생성 표시를 넣지 말라는 지시가 들어 있다', () => {
   /* Output style이 영어이거나 어느 언어로 생각할지 적혀 있지 않으면 Claude는 영어로 구상한 뒤 한국어로 옮기기 쉽습니다. */
   const style = readFileSync(new URL('../output-styles/korean-style.md', import.meta.url), 'utf8');
   assert.match(style, /한국어로 생각합니다/);
   assert.match(style, /Generated with \[Claude Code\]/);
 });
 
-test('skill에는 사용자가 알려 온 번역투를 고치라는 지시가 들어 있다', () => {
+test('Skill에는 사용자가 알려 온 번역투를 고치라는 지시가 들어 있다', () => {
   /* 사용자는 Claude가 항목을 새로 넣는 일을 `더하다`로, 지표를 구하는 일을 `재다`로 쓴 답변을 보았다고 알려 왔습니다. `반랙`, `코드 밖에서 만든`, 항목 이름에 할 일을 몰아넣고 콜론 뒤에 누가 하는지만 쓴 목록도 보았다고 알려 왔습니다. 검사기는 이 가운데 일부만 잡으므로 지시가 빠지면 안 됩니다. */
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(skill, /영어 `add`, `measure`를 옮긴 `더하다`, `재다`/);
@@ -338,7 +350,7 @@ test('skill에는 사용자가 알려 온 번역투를 고치라는 지시가 �
   assert.match(skill, /항목 이름에 할 일을 몰아넣고 콜론 뒤에 누가 하는지만 쓴 목록/);
 });
 
-test('skill에는 프로그램이 하는 일과 Claude가 할 일을 행위자 없이 이은 문장을 고치라는 지시가 들어 있다', () => {
+test('Skill에는 프로그램이 하는 일과 Claude가 할 일을 행위자 없이 이은 문장을 고치라는 지시가 들어 있다', () => {
   /* 사용자는 이 도구를 설치한 다른 환경에서 Claude가 쓴 문단을 보여 주며 말이 이상하다고 알려 왔습니다. 그 문단에는 무엇에서 지우는지와 무엇의 이유인지가 빠져 있었습니다. 검사기는 이런 문장을 잡지 못하므로 지시가 빠지면 안 됩니다. */
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(skill, /프로그램이 하는 일과 내가 할 일을 행위자 없이 이은 문장/);
@@ -346,14 +358,14 @@ test('skill에는 프로그램이 하는 일과 Claude가 할 일을 행위자 �
   assert.match(skill, /`승인을 묻습니다` → `승인을 요청합니다` 또는 `승인할지 묻습니다`/);
 });
 
-test('skill에는 영어 `Why`를 옮긴 `왜` 제목을 그 절에 담은 내용이 드러나는 이름으로 고치라는 지시가 들어 있다', () => {
+test('Skill에는 영어 `Why`를 옮긴 `왜` 제목을 그 절에 담은 내용이 드러나는 이름으로 고치라는 지시가 들어 있다', () => {
   /* 검사기는 `왜` 하나만 쓴 제목과 항목 이름을 경고로만 알립니다. Hook은 경고 때문에 답변을 다시 쓰게 하지 않으므로 skill에서 이 지시가 빠지면 안 됩니다. */
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(skill, /영어 제목과 항목 이름을 낱말 그대로 옮긴 것/);
   assert.match(skill, /`## 왜` → `## 문제 및 원인`/);
 });
 
-test('skill에는 흔한 한자어 동사는 그대로 쓰고 프로젝트 지침에 든 고칠 표현은 따라 쓰지 말라는 지시가 들어 있다', () => {
+test('Skill에는 흔한 한자어 동사는 그대로 쓰고 프로젝트 지침에 든 고칠 표현은 따라 쓰지 말라는 지시가 들어 있다', () => {
   /* 한때 skill의 한자어 항목 예시는 `호출`, `제거`까지 고유어로 바꾼 문장이었습니다. 그 무렵 이 도구를 설치한 프로젝트에서 Claude는 `더하다`, `재다`를 자주 썼습니다. 이 예시가 원인인지는 확인하지 못했습니다. */
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(skill, /개발 문서에서 흔히 쓰는 한자어 동사는 그대로 씁니다/);
@@ -362,20 +374,42 @@ test('skill에는 흔한 한자어 동사는 그대로 쓰고 프로젝트 지�
   assert.match(skill, /프로젝트 지침, 기존 문서, 앞선 답변에 아래 고칠 표현이 있어도 표현을 맞추려고 따라 쓰지 않습니다/);
 });
 
-test('skill은 사용자나 프로젝트 지침이 IT 용어를 한글로 적으라고 요구하면 그 요구를 따르라고 하고 검사기를 따르라고 하지 않는다', () => {
+test('Skill은 사용자나 프로젝트 지침이 IT 용어를 한글로 적으라고 요구하면 그 요구를 따르라고 하고 검사기를 따르라고 하지 않는다', () => {
   /* 규칙 문서에서 IT 용어 표를 고쳐도 skill 지시는 바뀌지 않습니다. `required-spelling`은 답변에만 적용되므로 파일과 commit 메시지에서는 한글 표기를 요구하지 못합니다. */
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(skill, /사용자나 `CLAUDE\.md` 같은 프로젝트 지침이 IT 용어를 한글로 적으라고 요구하면 그 요구를 따릅니다/);
   assert.doesNotMatch(skill, /검사기가 다른 표기를 요구하면 검사기를 따릅니다/);
 });
 
-test('output style과 skill에는 독자에게 필요한 내용만 고르고 공개하는 글에 내부 정보와 개인 정보를 넣지 말라는 지시가 들어 있다', () => {
+test('Output style과 skill에는 독자에게 필요한 내용만 고르고 공개하는 글에 내부 정보와 개인 정보를 넣지 말라는 지시가 들어 있다', () => {
   /* 이 도구를 설치한 프로젝트에서도 Claude는 개인정보 처리방침에 사이트 주인의 실명과 개발 server 주소를 넣었습니다. 검사기는 이런 내용을 잡지 못하므로 지시가 빠지면 안 됩니다. */
   const style = readFileSync(new URL('../output-styles/korean-style.md', import.meta.url), 'utf8');
   const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
   assert.match(style, /누가 읽는지 정하고/);
   assert.match(style, /공개하는 글에 넣지 않습니다/);
-  assert.match(skill, /^## 내용 고르기$/m);
+  assert.match(skill, /^## 내용 선정$/m);
   assert.match(skill, /공개하는 글에는 내부 정보와 개인 정보를 넣지 않습니다/);
-  assert.ok(skill.indexOf('## 내용 고르기') < skill.indexOf('## 쓰는 순서'), '내용을 고른 뒤에 문장을 씁니다');
+  assert.ok(skill.indexOf('## 내용 선정') < skill.indexOf('## 작성 순서'), '내용을 고른 뒤에 문장을 씁니다');
+});
+
+test('Skill에는 제목을 업무 문서식 명사구로 쓰라는 지시가 들어 있고 `-하기` 제목을 권하지 않는다', () => {
+  /* 한때 skill은 동작을 가리키는 제목에 `-하기`를 붙이라고 했고 블로그 글 제목의 고친 예도 `-기` 제목이었습니다. 그 무렵 이 도구를 설치한 프로젝트에서 Claude는 블로그 글 답변에 `## 상품 정보를 한 번에 조회하기` 같은 제목을 달았습니다. */
+  const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
+  assert.match(skill, /^### 제목$/m);
+  assert.match(skill, /Markdown 제목은 업무 문서식 명사구로 씁니다/);
+  assert.match(skill, /`## 빠르게 시작하기` → `## 설치 방법`/);
+  assert.match(skill, /`## 다시 설치하기` → `## 재설치`/);
+  assert.doesNotMatch(skill, /`-하기`를 붙입니다/);
+  assert.doesNotMatch(skill, /→ `#{1,6} [^`]*(?:하기|바꾸기|쓰기|보기)`/, '고친 예로 `-기` 제목을 들지 않습니다');
+});
+
+test('Skill에는 직접 이유가 아니거나 서로 관계없는 사실을 이어 붙이지 말고 측정 결과의 단서를 수치 바로 옆에 두라는 지시가 들어 있다', () => {
+  /* README의 측정 결과 절에는 검사 기준과 집계 결과를 `~으므로`로 이으면서 중간 단계와 용어 설명을 뺀 문장이 있었습니다. */
+  const skill = readFileSync(new URL('../skill/korean-rewrite/SKILL.md', import.meta.url), 'utf8');
+  assert.match(skill, /직접 이유가 아니거나 중간 단계를 뺀 사실을 `~으므로`로 이은 문장과 서로 관계없는 사실을 `~고`, `~며`로 이은 문장/);
+  assert.match(skill, /같은 주제의 사실을 나란히 이은 문장은 고치지 않습니다/);
+  assert.match(skill, /독자가 모르는 내부 용어를 설명 없이 쓴 문장/);
+  assert.match(skill, /- 측정 결과와 보고서:/);
+  assert.match(skill, /`~기 때문입니다`를 떼어 이유를 근거 문장 앞에 두고 `그래서`로 잇습니다/);
+  assert.doesNotMatch(skill, /이유를 앞 문장 안으로 옮깁니다/);
 });

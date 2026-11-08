@@ -300,7 +300,7 @@ test('`korean-writer` agent를 불렀으면 `korean-rewrite` skill을 부르지 
 });
 
 test('PreToolUse hook은 agent를 부르지 않은 요청에서 한글이 200자 이상인 Write를 막는다', () => {
-  /* 막는 이유에는 agent 이름과 메모에 적을 항목(독자, 글 종류, 말투, 담을 사실)이 들어 있습니다. Agent를 부른 요청에서는 막지 않습니다. */
+  /* 막는 이유에는 agent 이름과 메모에 적을 항목(독자, 글 종류, 말투, 담을 사실, 사실 사이의 관계)이 들어 있습니다. Agent를 부른 요청에서는 막지 않습니다. */
   const input = (path) => ({
     tool_name: 'Write',
     tool_input: { file_path: join(ROOT, 'docs', 'writer-test.md'), content: `${LONG_KOREAN}\n` },
@@ -310,7 +310,7 @@ test('PreToolUse hook은 agent를 부르지 않은 요청에서 한글이 200자
   assert.equal(denied.hookSpecificOutput.permissionDecision, 'deny');
   const reason = denied.hookSpecificOutput.permissionDecisionReason;
   assert.ok(reason.includes(WRITER_MISSING));
-  for (const word of ['korean-writer', '독자', '글 종류', '말투', '담을 사실']) assert.ok(reason.includes(word), word);
+  for (const word of ['korean-writer', '독자', '글 종류', '말투', '담을 사실', '사실 사이의 관계']) assert.ok(reason.includes(word), word);
   assert.equal(runHook('pretooluse.mjs', input(transcript([prompt('문서를 써 주십시오'), ...WRITER_CALL]))), null);
   const short = { ...input(transcript([prompt('문서를 써 주십시오'), ...SKILL_CALL])), tool_input: { file_path: join(ROOT, 'docs', 'writer-test.md'), content: `${KOREAN}\n` } };
   assert.equal(runHook('pretooluse.mjs', short), null, '한글이 200자보다 적은 글은 skill만 부르면 됩니다');

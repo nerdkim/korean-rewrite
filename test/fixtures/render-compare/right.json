@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "profile": "installed",
+      "model": "claude-opus-5-5",
+      "run": 1,
+      "answers": [
+        {
+          "id": "sample",
+          "text": "응답 시간이 1.2초였습니다. 원인은 N+1 query였습니다.\n\n## 주문마다 따로 조회하던 query\n\nN+1 query는 목록의 항목마다 query를 한 번씩 더 실행하는 문제입니다."
+        }
+      ]
+    }
+  ]
+}

@@ -27,7 +27,8 @@
     "doctor": "node scripts/doctor.mjs",
     "test": "node --test test/*.test.mjs",
     "install-to": "node scripts/install.mjs",
-    "eval": "node scripts/eval-korean.mjs"
+    "eval": "node scripts/eval-korean.mjs",
+    "compare": "node scripts/render-compare.mjs"
   },
   "files": [
     "docs/rules.md",

@@ -47,6 +47,10 @@ const LIST_KEYS = {
   'result-adverbs': 'resultAdverbs',
   /* 첫머리에 소문자로 써도 되는 영어 이름입니다. 이 키가 없는 규칙에서는 첫머리의 영어 소문자를 검사하지 않습니다. */
   'lowercase-start-exempt': 'lowercaseStartExempt',
+  /* 제목 끝에 오면 잡을 꼴입니다. `-하기`, `-ㄴ 것`처럼 문법서가 어미를 적는 방식으로 적습니다. 이 키가 없거나 값이 비어 있으면 제목 형식을 검사하지 않습니다. */
+  'heading-form-endings': 'headingFormEndings',
+  /* 제목 끝에 있어도 잡지 않을 낱말입니다. `띄어쓰기`처럼 원래 명사인 낱말을 적습니다. 앞에 `_`를 붙인 낱말은 제목이 그 낱말 하나뿐일 때만 잡지 않습니다. */
+  'heading-form-exempt': 'headingFormExempt',
 };
 
 /* 찾을 표현과 대신 쓸 후보를 짝지은 매핑 키입니다. */
@@ -206,6 +210,9 @@ const FALLBACK = {
   resultAdverbs: [],
   /* 키가 없는 예전 규칙이나 읽지 못한 규칙에서는 첫머리의 영어 소문자를 검사하지 않습니다. */
   lowercaseStartExempt: null,
+  /* 키가 없는 예전 규칙이나 읽지 못한 규칙에서는 제목 형식을 검사하지 않습니다. */
+  headingFormEndings: [],
+  headingFormExempt: [],
   bannedTransliteration: new Map(),
   ambiguousTransliteration: new Map(),
   bannedTranslation: new Map(),
@@ -301,6 +308,8 @@ function freshRules() {
     resultAdverbs: [],
     /* 키가 없으면 null로 남겨 두고 첫머리의 영어 소문자를 검사하지 않습니다. 값을 비우면 예외 없이 검사합니다. */
     lowercaseStartExempt: null,
+    headingFormEndings: [],
+    headingFormExempt: [],
     bannedTransliteration: new Map(),
     ambiguousTransliteration: new Map(),
     bannedTranslation: new Map(),
@@ -427,12 +436,13 @@ export function loadRules(docPath) {
   return { ...parseRuleBlock(block[1]), source: docPath, reason: null };
 }
 
-/* 코드 블록 안쪽을 다시 볼 때 쓰는 규칙입니다. 코드 블록에는 명령 출력과 예시 답변처럼 옮겨 적은 글이 많습니다. 따라서 IT 용어 표, 한자어, 구어 낱말, 접속 부사, 첫머리의 영어 소문자, 금액 표기 규칙도 적용하지 않습니다. */
+/* 코드 블록 안쪽을 다시 볼 때 쓰는 규칙입니다. 코드 블록에는 명령 출력과 예시 답변처럼 옮겨 적은 글이 많습니다. 코드 블록 안의 `#` 줄은 shell script나 설정 파일의 주석이거나 Markdown 예시의 제목입니다. 따라서 IT 용어 표, 한자어, 구어 낱말, 접속 부사, 첫머리의 영어 소문자, 금액 표기, 제목 형식 규칙도 적용하지 않습니다. */
 export function fenceRules(rules) {
   return {
     ...rules,
     lowercaseStartExempt: null,
     currencySymbols: new Map(),
+    headingFormEndings: [],
     bannedChar: rules.bannedChar.filter((name) => name !== 'emoji'),
     imperativeEndings: [],
     needsGloss: [],

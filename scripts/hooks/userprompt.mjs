@@ -20,7 +20,7 @@ export function skillReminder(name, writer = '', minHangul = 0, answerMinHangul 
       : `이 프로젝트에서 한국어로 답하거나 한국어가 들어간 파일, 주석, commit 메시지, PR 설명을 쓰려면 먼저 Skill 도구로 ${name} skill을 부르고 그 절차를 따르십시오. `) +
     '무엇을 쓸지 구상할 때부터 한국어로 생각하고 영어로 떠올린 문장을 한국어로 옮기지 마십시오.' +
     (writer && targets.length > 0
-      ? ` ${targets.join(', ')} 직접 쓰지 말고 Agent 도구로 ${writer}에게 독자, 글 종류, 말투, 담을 사실을 적은 메모를 넘기십시오. ` +
+      ? ` ${targets.join(', ')} 직접 쓰지 말고 Agent 도구로 ${writer}에게 독자, 글 종류, 말투, 담을 사실, 사실 사이의 관계를 적은 메모를 넘기십시오. ` +
         '돌려받은 글에서 `빠진 정보:` 줄은 빼고 그 내용은 사용자에게 알리십시오. 나머지는 고치지 말고 쓰십시오. hook이 오류를 알리면 그 부분만 고치십시오.'
       : '')
   );

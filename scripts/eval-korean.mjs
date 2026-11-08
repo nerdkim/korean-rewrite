@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { isEntryPoint } from './lib/paths.mjs';
-import { loadRules } from './lib/rules.mjs';
+import { loadRules, withRegister } from './lib/rules.mjs';
 import { blockingViolations, checkText } from './lib/check.mjs';
 import { CHAR_CLASSES, SHORTCODE_RE } from './lib/rules/chars.mjs';
 import { main as reviewerMain } from './eval-reviewer.mjs';
@@ -41,11 +41,13 @@ function stopBlocked(responses) {
 export function summarize(rows, rules) {
   /* 프로필 이름이 `__proto__` 같은 값이어도 다른 객체에 속성이 생기지 않게 prototype이 없는 객체에 모읍니다. */
   const out = Object.create(null);
+  /* 말투를 합니다체로 정한 규칙에서 해요체 어미가 걸린 답변은 말투를 해요체로 바꾼 규칙으로 다시 검사합니다. 이 검사에서 말투 오류가 없으면 해요체로만 쓴 답변으로 집계합니다. 합니다체와 해요체를 섞은 답변은 이 검사에서 `-니다` 어미가 말투 오류로 걸리므로 해요체로만 쓴 답변으로 집계하지 않습니다. */
+  const haeyoRules = withRegister(rules, '해요체');
   for (const row of rows) {
     if (!Array.isArray(row?.answers) || row.answers.some((answer) => typeof answer?.text !== 'string')) {
       throw new Error(`answers 배열이 없거나 답변 글(text)이 빠진 행입니다: ${JSON.stringify(row?.profile ?? null)}`);
     }
-    const t = (out[row.profile] ??= { answers: 0, skill: 0, rewritten: 0, errors: 0, register: 0, transliteration: 0, looseTranslation: 0, emoji: 0, middot: 0, attribution: 0,
+    const t = (out[row.profile] ??= { answers: 0, skill: 0, rewritten: 0, errors: 0, register: 0, haeyoOnly: 0, transliteration: 0, looseTranslation: 0, emoji: 0, middot: 0, attribution: 0,
       chars: 0, costUsd: 0, seconds: 0, firstAnswers: 0, firstCostUsd: 0, repeatAnswers: 0, repeatCostUsd: 0 });
     t.costUsd += row.costUsd ?? 0;
     t.seconds += row.seconds ?? 0;
@@ -65,7 +67,10 @@ export function summarize(rows, rules) {
       if ((row.skills ?? []).includes(rules.writingSkill)) t.skill += 1;
       if (rewritten) t.rewritten += 1;
       if (blockingViolations(found).length > 0) t.errors += 1;
-      if (found.some((v) => v.rule === 'wrong-register')) t.register += 1;
+      if (found.some((v) => v.rule === 'wrong-register')) {
+        t.register += 1;
+        if (!checkText(answer.text, haeyoRules, 'chat').some((v) => v.rule === 'wrong-register')) t.haeyoOnly += 1;
+      }
       if (found.some((v) => TRANSLITERATION_RULES.has(v.rule))) t.transliteration += 1;
       if (found.some((v) => v.rule === 'loose-translation')) t.looseTranslation += 1;
       if (found.some((v) => v.rule === 'ai-attribution')) t.attribution += 1;
@@ -100,6 +105,7 @@ export function formatSummary(summary) {
     ['Stop hook이 다시 쓰게 한 답변', count('rewritten')],
     ['검사기가 오류를 찾은 답변', count('errors')],
     ['검사기가 해요체 어미를 찾은 답변', count('register')],
+    ['해요체로만 쓴 답변', count('haeyoOnly')],
     ['검사기가 IT 용어의 한글 음차를 찾은 답변', count('transliteration')],
     ['검사기가 IT 용어의 번역어를 찾은 답변', count('looseTranslation')],
     ['Emoji가 들어간 답변', count('emoji')],

@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "profile": "baseline",
+      "model": "claude-opus-5-5",
+      "run": 1,
+      "answers": [
+        {
+          "id": "sample",
+          "text": "## 문제\n\n응답 시간이 **1.2초**였습니다. 쿼리 로그를 확인해 보니 쿼리가 많았습니다.\n\n```sql\nSELECT * FROM orders;\n```\n\n쿼리 수를 줄이면 빨라집니다. 확인해 보세요."
+        }
+      ]
+    }
+  ]
+}

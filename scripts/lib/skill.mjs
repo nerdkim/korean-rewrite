@@ -232,6 +232,6 @@ export function needsWriter({ text, rules, projectRoot, transcriptPath, agentId,
 export function writerRequest(name, minHangul, retry) {
   return (
     `한글이 ${minHangul}자 이상인 글인데 이번 요청에서 아직 ${name} ${WRITER_MISSING}. ` +
-    `Agent 도구로 ${name}에게 독자, 글 종류, 말투, 담을 사실을 적은 메모를 넘기고 돌려받은 글로 ${retry}`
+    `Agent 도구로 ${name}에게 독자, 글 종류, 말투, 담을 사실, 사실 사이의 관계를 적은 메모를 넘기고 돌려받은 글로 ${retry}`
   );
 }
