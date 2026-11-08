@@ -830,8 +830,8 @@ README의 설치 전후 비교에 실은 답변은 아래 세 명령 가운데 �
 
 ```bash
 npm run eval -- --run --cases test/fixtures/eval/readme.json --models claude-opus-5-5 --effort medium --repeat 2 --individual --with-hooks --profiles baseline --out .eval/2026-11-07-readme2-baseline
-npm run eval -- --run --cases test/fixtures/eval/readme.json --models claude-opus-5-5 --effort medium --repeat 2 --individual --with-hooks --profiles installed --out .eval/2026-11-07-readme3-installed
-npm run eval -- --summary .eval/2026-11-07-readme2-baseline .eval/2026-11-07-readme3-installed
+npm run eval -- --run --cases test/fixtures/eval/readme.json --models claude-opus-5-5 --effort medium --repeat 2 --individual --with-hooks --profiles installed --out .eval/2026-11-08-readme9-installed
+npm run eval -- --summary .eval/2026-11-07-readme2-baseline .eval/2026-11-08-readme9-installed
 ```
 
 README의 설치 전후 비교에 쓴 두 평가도 이 절 뒤쪽에 적은 방법대로 새로 만든 설정 directory에서 실행했습니다. 실행하기 전에 `claude -p`를 두 번 실행해 기능 설정을 받아 두었습니다.
@@ -842,6 +842,7 @@ README의 설치 전후 비교에 쓴 두 평가도 이 절 뒤쪽에 적은 방
 
 `--cases`로 다른 평가 입력을 고를 수 있습니다. 주지 않으면 평가 script는 `cases.json`을 씁니다. 평가 입력은 [test/fixtures/eval/](../test/fixtures/eval/)에 있습니다.
 
+- `blog.json`은 개발과 관계없는 블로그 글 요청 하나를 담은 입력입니다. 배송 기간을 줄인 과정을 적은 메모를 주고 회사 블로그에 올릴 짧은 글을 쓰게 합니다. 이 입력으로는 제목에 그 절의 내용이 드러나는지와 메모에 없는 계획이나 개발 예제가 답변에 들어가는지 봅니다.
 - `calque.json`은 한국어로 옮기면 번역투가 나오기 쉬운 영어 문장을 모은 입력이고 번역이 아닌 요청도 세 가지 들어 있습니다. 그 가운데 두 요청은 답변에 영어를 낱말 단위로 옮겨 만든 말이 나오는지 보려고 넣었습니다. 나머지 한 요청에서는 할 일마다 담당자를 적어 둔 영어 메모를 한국어로 정리하게 하고 Claude가 할 일과 담당자를 한 문장에 쓰는지 봅니다.
 - `content.json`은 개인정보 처리방침, 업데이트 소식, README, 장애 안내처럼 공개하는 글을 쓰게 하는 입력이고 요청마다 프로젝트 메모나 영어 문단을 함께 줍니다. 이 입력으로는 독자에게 필요 없는 내부 정보와 개인 정보가 답변에 들어가는지 봅니다. `사본`처럼 영어를 낱말 단위로 옮긴 말이 들어가는지도 봅니다. 일반 독자가 읽는 글에 한글로 적어야 할 `page`, `browser`, `cookie` 같은 영어 낱말이 들어가는지도 봅니다.
 - `native-verb.json`은 항목을 새로 넣는 일과 지표를 구하는 일을 한국어로 쓰게 하는 입력입니다. 요청에는 `추가`, `측정`이라는 말을 넣지 않았습니다. 이 입력으로는 Claude가 영어 `add`와 `measure`를 `더하다`, `재다`로 옮기는지 봅니다. 수를 합치는 영어 문장을 옮기는 요청도 하나 넣었고 이 요청의 답변에서는 `더하다`나 `합하다`를 쓰고 `추가`를 쓰지 않는지 봅니다.
