@@ -142,7 +142,7 @@ node .korean-style/scripts/check-korean.mjs --explain translationese
 
 규칙 문서에 `reviewer-model` 키가 없으면 검토 hook이 기본값으로 검토합니다. 따라서 검토 hook을 끄려면 키를 추가하고 값을 비워야 합니다. `reviewer-answer-min-hangul`을 `0`으로 정하면 검토 hook은 파일, commit 메시지, PR과 issue에 올린 글만 검토 model에게 보냅니다.
 
-검토 model이 잘못 지적하면 Claude가 자연스러운 문장까지 수정할 수 있습니다. 2026년 11월 6일에 그날 쓰던 검토 지시로 측정했습니다. 자연스러운 예문 10개를 model마다 여섯 번씩 보냈습니다. Sonnet과 Opus는 이 60번 가운데 한 번도 잘못 지적하지 않았지만 Haiku는 6번 잘못 지적했습니다. 세 model의 지적 횟수, 비용, 측정 조건은 [검사 규칙](rules.md#요청을-마친-뒤-다시-읽는-검토-model)에 있습니다.
+검토 model이 잘못 지적하면 Claude가 자연스러운 문장까지 수정할 수 있습니다. 검토 model이 자연스러운 문장을 잘못 지적하는 횟수는 2026년 11월 6일에 그날 쓰던 검토 지시로 측정했습니다. 자연스러운 예문 10개를 model마다 여섯 번씩 보냈습니다. Model마다 합쳐서 60번 보낸 셈입니다. Sonnet과 Opus는 이 60번 가운데 한 번도 잘못 지적하지 않았지만 Haiku는 6번 잘못 지적했습니다. 세 model의 지적 횟수, 비용, 측정 조건은 [검사 규칙](rules.md#요청을-마친-뒤-다시-읽는-검토-model)에 있습니다.
 
 개발자가 읽는 글에서 IT 용어를 영어 원어로 쓰는 표기는 업계 다수 관행이 아니라 이 도구가 정한 기본값입니다. 이 기본값의 근거는 [한국어 작성 원칙](writing.md)에 있습니다. 기본 규칙에서 검사기는 `banned-transliteration`에 적은 한글 음차를 오류로 잡습니다. `ambiguous-transliteration`에 적은 한글 음차와 `banned-translation`에 적은 번역어는 경고로 알립니다.
 팀이 IT 용어를 영어 원어로 쓰지 않으려면 이 세 키의 값을 비웁니다. 기본 규칙은 한 키의 값을 여러 줄에 나눠 적었으므로 키마다 그 키로 시작하는 줄을 모두 삭제한 뒤 `banned-transliteration:`처럼 값이 빈 줄을 하나 적습니다. 한 줄만 비우면 다른 줄에 적은 낱말은 계속 잡습니다. 세 키를 비우면 검사기는 IT 용어의 한글 표기가 `loanword-spelling`에 적은 표기와 맞는지만 확인합니다. 예를 들어 `디렉토리`는 오류로 잡고 `디렉터리`로 고치라고 알립니다. 세 키를 비워도 skill, output style, 작성 agent 파일에 든 IT 용어를 영어 원어로 쓰라는 지시는 바뀌지 않습니다. Claude가 한글 표기를 쓰게 하려면 프로젝트의 `CLAUDE.md`에 IT 용어를 한글로 적으라고 써야 합니다.

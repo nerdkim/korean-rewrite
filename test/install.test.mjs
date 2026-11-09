@@ -210,12 +210,12 @@ test('규칙 문서는 docs 아래가 아니라 설치 directory 바로 아래�
   assert.ok(!existsSync(join(target, INSTALLED_DIR, 'docs', 'rules.md')));
 });
 
-test('`install.mjs`, `eval-korean.mjs`, `render-compare.mjs`는 설치한 프로젝트에 남기지 않고 검사기는 남긴다', () => {
-  /* 설치한 프로젝트에서 이 세 script를 실행해 다시 설치하거나 실제 model로 평가하거나 README의 비교 이미지를 만드는 일은 없습니다. */
+test('`install.mjs`, `eval-korean.mjs`, `eval-reviewer.mjs`, `render-compare.mjs`는 설치한 프로젝트에 남기지 않고 검사기는 남긴다', () => {
+  /* 설치한 프로젝트에서 이 네 script를 실행해 다시 설치하거나 실제 model로 평가하거나 README의 비교 이미지를 만드는 일은 없습니다. */
   const target = scratch();
   install(target);
 
-  for (const name of ['install.mjs', 'eval-korean.mjs', 'render-compare.mjs']) {
+  for (const name of ['install.mjs', 'eval-korean.mjs', 'eval-reviewer.mjs', 'render-compare.mjs']) {
     assert.ok(!existsSync(join(target, INSTALLED_DIR, 'scripts', name)), `설치한 프로젝트에 남아 있습니다(${name})`);
   }
   assert.ok(existsSync(join(target, INSTALLED_DIR, 'scripts', 'check-korean.mjs')), '검사기까지 지웠습니다');

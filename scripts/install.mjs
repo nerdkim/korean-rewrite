@@ -414,8 +414,8 @@ function main() {
   if (backup && !existsSync(backup)) writeFileSync(backup, before, { flag: 'wx' });
   for (const dir of ['scripts', 'docs']) rmSync(join(installDir, dir), { recursive: true, force: true });
   cpSync(join(SOURCE_ROOT, 'scripts'), join(installDir, 'scripts'), { recursive: true });
-  /* 설치한 프로젝트에서는 다시 설치하거나 답변 평가를 실행하거나 README의 비교 이미지를 만들지 않으므로 이 세 script를 남기지 않습니다. */
-  for (const name of ['install.mjs', 'eval-korean.mjs', 'render-compare.mjs']) rmSync(join(installDir, 'scripts', name));
+  /* 설치한 프로젝트에서는 이 네 script를 실행해 다시 설치하거나 답변과 검토 model을 평가하거나 README의 비교 이미지를 만드는 일이 없으므로 남기지 않습니다. */
+  for (const name of ['install.mjs', 'eval-korean.mjs', 'eval-reviewer.mjs', 'render-compare.mjs']) rmSync(join(installDir, 'scripts', name));
   mkdirSync(join(installDir, 'docs'), { recursive: true });
   cpSync(join(SOURCE_ROOT, 'docs/limits.md'), join(installDir, 'docs/limits.md'));
   cpSync(join(SOURCE_ROOT, 'docs/rules.md'), join(installDir, 'docs/defaults.md'));
