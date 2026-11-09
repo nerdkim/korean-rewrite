@@ -1,6 +1,6 @@
 {
   "name": "korean-rewrite",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Claude Code용 한국어 글쓰기 skill과 hook 묶음입니다. Claude가 번역투 없이 업무 문서처럼 격식 있는 문어체로 쓰게 합니다. 검사기가 오류를 찾은 글은 hook이 파일, commit, PR에 남지 않게 막습니다.",
   "type": "module",
   "license": "MIT",
