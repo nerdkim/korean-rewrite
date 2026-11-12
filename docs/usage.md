@@ -122,6 +122,18 @@ node .korean-style/scripts/check-korean.mjs --explain translationese
 오류가 있으면 종료 코드 1로, 사용법이 틀리면 2로 끝납니다. 경고만 있으면 0으로 끝나고 `--strict`를 주면 경고만 있어도 1로 끝납니다.
 검사기는 파일을 수정하지 않습니다. 기존 문서에서 오류가 나와도 설치에 실패한 것은 아닙니다.
 
+설치한 프로젝트에서 검사기와 규칙 문서를 확인하고 검사 대상 파일도 모두 검사하려면 다음 명령을 실행합니다.
+
+```sh
+node .korean-style/scripts/gate.mjs
+```
+
+이 script는 자체 검사 option, 검사기 자체 검사, 규칙 문서 검사, 전체 파일 검사의 네 단계를 차례로 실행합니다. 자체 검사 option 단계는 `check-korean.mjs`와 `doctor.mjs`처럼 직접 실행하는 script에 `--self-check` option이 있는지 확인합니다. 검사기 자체 검사는 검사기에 든 예문을 기본 규칙으로 검사해 예문마다 정해 둔 결과가 나오는지 확인합니다. 규칙 문서 검사는 `.korean-style/rules.md`를 그 문서에 적힌 규칙으로 검사해 오류가 없는지 확인합니다. 전체 파일 검사는 `check-korean.mjs --all`과 같습니다.
+
+Script는 단계마다 결과를 출력하고 마지막 줄에 `gate 통과`나 `gate 실패: 단계 1개`처럼 전체 결과를 출력합니다. 실패한 단계가 있으면 종료 코드 1로 끝납니다. 기존 문서에 오류가 남아 있으면 전체 파일 검사 단계가 실패합니다. 그래서 gate도 실패합니다.
+
+이 도구의 repository에서는 설치 script 자체 검사 단계와 test 단계도 실행됩니다. 설치한 프로젝트에는 이 도구의 test 파일이 없으므로 script는 test를 건너뛴다는 안내만 출력합니다.
+
 ## 규칙 변경
 
 `.korean-style/rules.md`의 `korean-style-rules` 블록을 수정합니다. 변경할 내용마다 고칠 키와 수정 방법은 다음과 같습니다.
