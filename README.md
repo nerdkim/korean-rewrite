@@ -100,7 +100,7 @@ Claude Code를 재시작한 뒤 아래 [설치 전후 비교](#설치-전후-비
 
 <!-- /korean-style-quote -->
 
-요청은 Claude Opus 5.5(`claude-opus-5-5`)에 보냈고 Claude Code 2.1.310에서 effort를 medium으로 두었습니다. 이 도구가 없는 프로젝트의 답변은 2026년 11월 7일에, 이 도구를 설치한 프로젝트의 답변은 11월 8일(한국 시간)에 받았습니다. 요청을 보낼 때마다 새 session을 열었습니다. 두 프로젝트에서 모두 Claude가 쓸 수 있는 도구는 Skill, Read, Bash뿐이었습니다. 설치한 skill과 hook은 이 README와 같은 commit에 든 것입니다.
+요청은 Claude Opus 5.5(`claude-opus-5-5`)에 보냈고 Claude Code 2.1.310에서 effort를 medium으로 두었습니다. 이 도구가 없는 프로젝트의 답변은 2026년 11월 7일에, 이 도구를 설치한 프로젝트의 답변은 11월 8일(한국 시간)에 받았습니다. 요청을 보낼 때마다 새 session을 열었습니다. 두 프로젝트에서 모두 Claude가 쓸 수 있는 도구는 Skill, Read, Bash뿐이었습니다. 측정에 쓴 skill과 hook은 v0.7.0 tag에 든 것과 같습니다. 이 측정 뒤에 skill, 검사 규칙, 검토 model에게 주는 지시에 새 규칙을 추가했습니다. 나중으로 넘긴다는 뜻의 `미루다`를 `보류하다`나 `연기하다`로 고치게 하는 규칙입니다. 이 규칙을 추가한 뒤에는 측정을 다시 하지 않았습니다.
 
 ![두 프로젝트의 첫 번째 답변에서 달라진 곳 9가지](docs/images/readme-compare.png)
 

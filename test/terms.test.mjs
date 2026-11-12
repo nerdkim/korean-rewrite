@@ -1,4 +1,4 @@
-/* IT 용어 표기, 번역투 목록, `세다`, 한자어와 구어 낱말 규칙의 회귀 test입니다. 잡아야 할 문장과 잡으면 안 되는 문장을 함께 둡니다. */
+/* IT 용어 표기, 번역투 목록, `세다`, `미루다`, 한자어와 구어 낱말 규칙의 회귀 test입니다. 잡아야 할 문장과 잡으면 안 되는 문장을 함께 둡니다. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
@@ -219,6 +219,23 @@ test('개수를 구하는 일을 `세다`로 쓴 문장은 경고로 알리고 �
 
 test('힘이 세다는 뜻의 `세다`, `셀 수 없이`, 수 관형사 `세`는 알리지 않는다', () => {
   for (const text of ['힘이 셉니다.', '바람이 세게 붑니다.', '고집이 센 편입니다.', '머리가 하얗게 셌습니다.', '셀 수 없이 많은 요청이 왔습니다.', '세 개를 골랐습니다.', '항목을 세 보고서로 나눴습니다.']) {
+    assert.deepEqual(caught(text, ['literal-verb']), [], text);
+  }
+});
+
+/* ---------------------------------------------------------------------------  `미루다`  --------------------------------------------------------------------------- */
+
+test('나중으로 넘기는 일을 `미루다`로 쓴 문장은 경고로 알리고 보류나 연기로 고치게 한다', () => {
+  for (const text of ['load balancer와 DNS record를 계속 미룹니다.', 'deploy를 다음 주로 미뤘습니다.', '삭제는 다음 정리 작업으로 미루겠습니다.', '결정을 미루고 다음 회의에서 다시 봅니다.', '일정이 한 주 미뤄졌습니다.', 'migration은 다음 release까지 미뤄 둡니다.', '그동안 이 정리 작업을 미루어 왔습니다.', '일정을 미뤄 주십시오.']) {
+    const found = caught(text, ['literal-verb']);
+    assert.equal(found.length, 1, text);
+    assert.equal(found[0].severity, 'warning', text);
+    assert.match(found[0].detail, /보류합니다.*연기합니다/, text);
+  }
+});
+
+test('짐작한다는 뜻의 `미루어 보아`, `미뤄 보면`과 `미루나무`는 알리지 않는다', () => {
+  for (const text of ['이 결과로 미루어 보아 cache가 원인입니다.', '앞의 log로 미뤄 보면 timeout입니다.', '그 수치로 미루어 짐작할 수 있습니다.', '강가에 미루나무가 서 있습니다.']) {
     assert.deepEqual(caught(text, ['literal-verb']), [], text);
   }
 });
